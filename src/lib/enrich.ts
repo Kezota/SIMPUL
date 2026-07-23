@@ -133,8 +133,14 @@ function classify(text: string): {
 
   if (topScore === 0) return { theme: 'lainnya', confidence: 0, scores }
 
-  // Confidence = seberapa jauh pemenang unggul dari runner-up.
-  const confidence = Math.min(1, (topScore - secondScore) / topScore + 0.35)
+  // Confidence menggabungkan dua hal yang berbeda, dan keduanya perlu:
+  //   margin   — seberapa jauh pemenang unggul dari runner-up (ambiguitas)
+  //   evidence — seberapa banyak kata kunci yang benar-benar ketemu (kekuatan bukti)
+  // Tanpa suku `evidence`, teks yang cuma memicu satu kata (skor 2 vs 1) ikut
+  // dapat keyakinan tinggi padahal buktinya tipis. Skor 6 dianggap bukti penuh.
+  const margin = (topScore - secondScore) / topScore
+  const evidence = Math.min(1, topScore / 6)
+  const confidence = 0.6 * margin + 0.4 * evidence
   return { theme: topId, confidence, scores }
 }
 

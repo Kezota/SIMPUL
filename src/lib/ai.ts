@@ -101,9 +101,7 @@ function detectRadiusM(q: string): number | null {
 
 export function describeNode(n: NodeStats): string {
   if (n.count === 0) {
-    return `${n.node.name} tidak punya satu pun laporan warga dalam radius ${formatDistance(
-      n.node.serviceRadiusM,
-    )}. Dalam dataset ini simpul tersebut "sunyi": bukan berarti kawasannya mati, tapi berarti tidak ada mata warga yang merekamnya — itu sendiri sudah temuan, dan jadi kandidat prioritas survey lapangan.`
+    return `${n.node.name} tidak menjadi simpul terdekat bagi satu pun laporan warga di dataset ini. Simpul tersebut "sunyi": bukan berarti kawasannya mati, tapi berarti tidak ada mata warga yang merekamnya — itu sendiri sudah temuan, dan jadi kandidat prioritas survey lapangan.`
   }
   const dom = n.dominantTheme ? themeMeta(n.dominantTheme).short.toLowerCase() : '-'
   const mix = n.themeMix
@@ -114,11 +112,17 @@ export function describeNode(n: NodeStats): string {
     n.complaintCount > 0
       ? ` ${n.complaintCount} dari ${n.count} laporan bernada keluhan (${pct(n.complaintRatio)}).`
       : ' Tidak ada laporan bernada keluhan di sini.'
-  return `${n.node.name} punya Indeks Denyut Transit ${n.pulseIndex}/100 dari ${n.count} laporan warga dalam radius ${formatDistance(
-    n.node.serviceRadiusM,
-  )}. Tema dominan: ${dom}. Komposisi: ${mix}.${keluhan} Rata-rata laporan berjarak ${formatDistance(
+  const walkable =
+    n.withinRadius > 0
+      ? `${n.withinRadius} di antaranya benar-benar dalam radius jalan kaki ${formatDistance(
+          n.node.serviceRadiusM,
+        )}`
+      : `tidak satu pun berada dalam radius jalan kaki ${formatDistance(
+          n.node.serviceRadiusM,
+        )} — kawasannya bergantung pada simpul ini tapi tidak bisa mencapainya dengan kaki`
+  return `${n.node.name} punya Indeks Denyut Transit ${n.pulseIndex}/100. Ada ${n.count} laporan warga yang simpul terdekatnya adalah tempat ini, dan ${walkable}. Tema dominan: ${dom}. Komposisi: ${mix}.${keluhan} Jarak rata-rata ${formatDistance(
     n.avgDistanceM,
-  )} dari simpul.`
+  )}.`
 }
 
 export function buildRecommendations(

@@ -146,7 +146,7 @@ export default function DetailPanel({ activity, node, onClear, onFilterNode }: P
 
       {n.themeMix.length > 0 && (
         <div className="block">
-          <h3>Komposisi tema di radius layanan</h3>
+          <h3>Komposisi tema di catchment</h3>
           <BarList
             data={n.themeMix.map((t) => ({
               label: themeMeta(t.theme).short,
@@ -162,8 +162,13 @@ export default function DetailPanel({ activity, node, onClear, onFilterNode }: P
         <dl className="kv">
           <dt>Radius layanan</dt>
           <dd>{formatDistance(n.node.serviceRadiusM)}</dd>
-          <dt>Laporan di radius</dt>
-          <dd>{n.count}</dd>
+          <dt>Catchment</dt>
+          <dd>{n.count} laporan (simpul terdekat)</dd>
+          <dt>Dalam radius</dt>
+          <dd>
+            {n.withinRadius} laporan{' '}
+            {n.count > 0 && `(${Math.round((n.withinRadius / n.count) * 100)}%)`}
+          </dd>
           <dt>Bernada keluhan</dt>
           <dd>{n.complaintCount}</dd>
           <dt>Koordinat</dt>

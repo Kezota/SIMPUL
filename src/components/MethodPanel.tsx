@@ -22,12 +22,12 @@ const STEPS = [
   {
     n: '5',
     title: 'Analisis spasial',
-    body: 'Nearest-neighbour join tiap aktivitas ke simpul terdekat (haversine); klasifikasi keterjangkauan pada ambang 500 m / 1 km / 2 km; buffer geodesik radius layanan; spatial join balik untuk menghitung isi tiap catchment; deteksi blank spot (>2 km dari simpul mana pun).',
+    body: 'Nearest-neighbour join tiap aktivitas ke simpul terdekat (haversine) — sekaligus membentuk catchment ala Voronoi; klasifikasi keterjangkauan pada ambang 500 m / 1 km / 2 km; buffer geodesik radius layanan untuk visual; deteksi blank spot (>2 km dari simpul mana pun).',
   },
   {
     n: '6',
     title: 'Indexing',
-    body: 'Indeks Denyut Transit per simpul (0–100) = 45% volume laporan (dinormalisasi) + 30% rata-rata relevansi tema + 25% rata-rata kelengkapan bukti visual. Bobot dibuat eksplisit supaya bisa diperdebatkan dan dikalibrasi.',
+    body: 'Indeks Denyut Transit per simpul (0–100) = 40% volume berbobot jarak Σ exp(−d/1500) + 30% rata-rata relevansi tema + 30% rata-rata kelengkapan bukti visual. Buffer 1 km kaku sempat dipakai tapi membuat 8 dari 10 simpul bernilai 0 — peluruhan jarak dipilih supaya indeksnya informatif tanpa memalsukan kedekatan.',
   },
   {
     n: '7',

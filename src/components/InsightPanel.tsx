@@ -61,7 +61,8 @@ export default function InsightPanel({
       <section className="block">
         <h3>Indeks Denyut Transit per simpul</h3>
         <p className="block-note">
-          45% volume laporan + 30% relevansi tema + 25% kelengkapan bukti visual.
+          40% volume (diluruhkan terhadap jarak) + 30% relevansi tema + 30%
+          kelengkapan bukti visual. Abu-abu = simpul tanpa catchment sama sekali.
           Klik untuk memfokuskan peta.
         </p>
         <BarList
@@ -71,7 +72,7 @@ export default function InsightPanel({
             value: n.pulseIndex,
             color: n.count === 0 ? '#cbd5e1' : '#0ea5e9',
             active: activeNodeId === n.node.id,
-            hint: `${n.node.name}: ${n.count} laporan, denyut ${n.pulseIndex}/100`,
+            hint: `${n.node.name}: ${n.count} laporan di catchment (${n.withinRadius} dalam radius jalan kaki), denyut ${n.pulseIndex}/100`,
             onClick: () => onFocusNode(n.node.id),
           }))}
         />
