@@ -68,32 +68,38 @@ export function Donut({
   const total = data.reduce((s, d) => s + d.value, 0) || 1
   const r = size / 2 - 12
   const c = 2 * Math.PI * r
-  let offset = 0
+
+  // Panjang busur + offset kumulatifnya dihitung lebih dulu, bukan lewat
+  // variabel yang diakumulasi di dalam map() — akumulasi seperti itu bocor ke
+  // luar render dan bisa memberi hasil berbeda pada render berikutnya.
+  const arcs = data.reduce<{ d: (typeof data)[number]; len: number; offset: number }[]>(
+    (acc, d) => {
+      const prev = acc[acc.length - 1]
+      const offset = prev ? prev.offset + prev.len : 0
+      return [...acc, { d, len: (d.value / total) * c, offset }]
+    },
+    [],
+  )
 
   return (
     <div className="donut-wrap">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img">
         <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-          {data.map((d) => {
-            const len = (d.value / total) * c
-            const el = (
-              <circle
-                key={d.label}
-                cx={size / 2}
-                cy={size / 2}
-                r={r}
-                fill="none"
-                stroke={d.color}
-                strokeWidth={16}
-                strokeDasharray={`${len} ${c - len}`}
-                strokeDashoffset={-offset}
-              >
-                <title>{`${d.label}: ${d.value}`}</title>
-              </circle>
-            )
-            offset += len
-            return el
-          })}
+          {arcs.map(({ d, len, offset }) => (
+            <circle
+              key={d.label}
+              cx={size / 2}
+              cy={size / 2}
+              r={r}
+              fill="none"
+              stroke={d.color}
+              strokeWidth={16}
+              strokeDasharray={`${len} ${c - len}`}
+              strokeDashoffset={-offset}
+            >
+              <title>{`${d.label}: ${d.value}`}</title>
+            </circle>
+          ))}
         </g>
         {centerValue && (
           <>

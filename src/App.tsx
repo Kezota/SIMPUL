@@ -8,21 +8,23 @@ import DetailPanel from './components/DetailPanel'
 import MethodPanel from './components/MethodPanel'
 import DataTable from './components/DataTable'
 
+import { DATASETS } from './data/datasets'
+import { REGION_LABEL } from './data/transitNodes'
 import {
   applyFilters,
   computeInsights,
   computeNodeStats,
-  loadActivities,
+  loadDataset,
 } from './lib/analysis'
 import type { BasemapVariant } from './lib/basemap'
-import type { Filters } from './lib/types'
+import type { DatasetId, Filters } from './lib/types'
 import './webgis.css'
 
 const INITIAL_FILTERS: Filters = {
-  themes: [],
+  categories: [],
   access: [],
-  onlyComplaints: false,
-  maxDistanceM: 20000,
+  onlyHighlighted: false,
+  maxDistanceM: 40000,
   search: '',
   nodeId: null,
 }
@@ -56,17 +58,25 @@ function useIsMobile() {
 }
 
 export default function App() {
-  // Pipeline dijalankan sekali: cleaning -> enrichment -> spatial join -> indexing.
-  const { activities, dropped } = useMemo(() => loadActivities(), [])
-  const nodeStats = useMemo(() => computeNodeStats(activities), [activities])
+  const [datasetId, setDatasetId] = useState<DatasetId>('community')
+
+  // Seluruh pipeline dijalankan ulang tiap dataset berganti:
+  // adapter -> cleaning -> enrichment -> spatial join -> indexing.
+  const loaded = useMemo(() => loadDataset(datasetId), [datasetId])
+  const { dataset, observations, nodes, dropped, notes } = loaded
+
+  const nodeStats = useMemo(
+    () => computeNodeStats(observations, nodes),
+    [observations, nodes],
+  )
   const insights = useMemo(
-    () => computeInsights(activities, nodeStats),
-    [activities, nodeStats],
+    () => computeInsights(observations, nodeStats),
+    [observations, nodeStats],
   )
 
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
   const [layers, setLayers] = useState<LayerVisibility>({
-    activities: true,
+    points: true,
     heatmap: true,
     nodes: true,
     radius: true,
@@ -84,31 +94,47 @@ export default function App() {
 
   const isMobile = useIsMobile()
 
-  const filtered = useMemo(() => applyFilters(activities, filters), [activities, filters])
+  const filtered = useMemo(
+    () => applyFilters(observations, filters),
+    [observations, filters],
+  )
 
   const selected = useMemo(
-    () => activities.find((a) => a.id === selectedId) ?? null,
-    [activities, selectedId],
+    () => observations.find((o) => o.id === selectedId) ?? null,
+    [observations, selectedId],
   )
   const selectedNode = useMemo(
     () => nodeStats.find((n) => n.node.id === selectedNodeId) ?? null,
     [nodeStats, selectedNodeId],
   )
 
+  // nonce = penghitung naik, supaya terbang ke koordinat yang SAMA dua kali
+  // tetap memicu efek di MapView. Sengaja bukan timestamp: nilai jam bukan
+  // fungsi murni dan membuat render tidak deterministik.
   const flyTo = (lat: number, lon: number, zoom: number) =>
-    setFocus({ lat, lon, zoom, nonce: performance.now() })
+    setFocus((prev) => ({ lat, lon, zoom, nonce: (prev?.nonce ?? 0) + 1 }))
+
+  /** Ganti dataset: filter & seleksi lama tidak berlaku (kategorinya beda). */
+  const switchDataset = (id: DatasetId) => {
+    if (id === datasetId) return
+    setDatasetId(id)
+    setFilters(INITIAL_FILTERS)
+    setSelectedId(null)
+    setSelectedNodeId(null)
+    setFocus(null)
+  }
 
   const openTab = (t: Tab) => {
     setTab(t)
     if (isMobile) setSheetOpen(true)
   }
 
-  const selectActivity = (id: string | null) => {
+  const selectObservation = (id: string | null) => {
     setSelectedId(id)
     if (!id) return
     setSelectedNodeId(null)
-    const a = activities.find((x) => x.id === id)
-    if (a) flyTo(a.lat, a.lon, 14)
+    const o = observations.find((x) => x.id === id)
+    if (o) flyTo(o.lat, o.lon, 15)
     openTab('detail')
   }
 
@@ -123,15 +149,29 @@ export default function App() {
   const focusNode = (nodeId: string) => {
     const n = nodeStats.find((x) => x.node.id === nodeId)
     if (!n) return
-    setSelectedNodeId(nodeId)
+    setSelectedNodeId(n.node.id)
     flyTo(n.node.lat, n.node.lon, 14)
   }
+
+  const controlPanel = (
+    <ControlPanel
+      dataset={dataset}
+      filters={filters}
+      setFilters={setFilters}
+      layers={layers}
+      setLayers={setLayers}
+      nodeStats={nodeStats}
+      filtered={filtered}
+      total={observations.length}
+    />
+  )
 
   const panelFor = (t: Tab) => {
     switch (t) {
       case 'insight':
         return (
           <InsightPanel
+            dataset={dataset}
             insights={insights}
             nodeStats={nodeStats}
             onFocusNode={focusNode}
@@ -141,10 +181,8 @@ export default function App() {
       case 'ai':
         return (
           <AIAssistant
-            activities={activities}
-            nodeStats={nodeStats}
-            insights={insights}
-            filters={filters}
+            key={dataset.id}
+            ctx={{ dataset, observations, nodeStats, insights }}
             onApply={(patch, f) => {
               setFilters({ ...INITIAL_FILTERS, ...patch })
               if (f) flyTo(f.lat, f.lon, f.zoom)
@@ -154,7 +192,8 @@ export default function App() {
       case 'detail':
         return (
           <DetailPanel
-            activity={selected}
+            dataset={dataset}
+            observation={selected}
             node={selectedNode}
             onClear={() => {
               setSelectedId(null)
@@ -167,21 +206,18 @@ export default function App() {
           />
         )
       case 'metode':
-        return <MethodPanel />
+        return <MethodPanel dataset={dataset} notes={notes} dropped={dropped} />
       case 'kontrol':
+        return controlPanel
+      case 'tabel':
         return (
-          <ControlPanel
-            filters={filters}
-            setFilters={setFilters}
-            layers={layers}
-            setLayers={setLayers}
-            nodeStats={nodeStats}
-            filtered={filtered}
-            total={activities.length}
+          <DataTable
+            dataset={dataset}
+            rows={filtered}
+            selectedId={selectedId}
+            onSelect={selectObservation}
           />
         )
-      case 'tabel':
-        return <DataTable rows={filtered} selectedId={selectedId} onSelect={selectActivity} />
     }
   }
 
@@ -193,21 +229,37 @@ export default function App() {
           <div>
             <h1>Denyut Simpul</h1>
             <p>
-              Apa yang sebenarnya hidup di sekitar stasiun &amp; terminal Bandung Raya —
-              dibaca dari laporan warga
+              Apa yang sebenarnya hidup di sekitar stasiun &amp; terminal — dibaca dari
+              data lapangan MAPID
             </p>
           </div>
         </div>
+
+        <nav className="dataset-switch" aria-label="Pilih dataset">
+          {DATASETS.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              className={d.id === datasetId ? 'on' : undefined}
+              title={`${d.blurb} — ${d.source}`}
+              onClick={() => switchDataset(d.id)}
+            >
+              {d.short}
+            </button>
+          ))}
+        </nav>
+
         <div className="topbar-actions">
           <span className="data-note" title={`${dropped} baris dibuang saat cleaning`}>
-            {activities.length} laporan · {nodeStats.length} simpul
+            {observations.length} titik · {nodes.length} simpul ·{' '}
+            {REGION_LABEL[dataset.region]}
           </span>
           <button
             type="button"
             className="btn ghost"
             onClick={() => setVariant(variant === 'light' ? 'dark' : 'light')}
           >
-            {variant === 'light' ? '🌙' : '☀️'} Basemap
+            {variant === 'light' ? '🌙' : '☀️'}
           </button>
         </div>
       </header>
@@ -215,40 +267,32 @@ export default function App() {
       <main className="layout">
         {!isMobile && (
           <aside className="rail rail-left">
-            <div className="rail-body">
-              <ControlPanel
-                filters={filters}
-                setFilters={setFilters}
-                layers={layers}
-                setLayers={setLayers}
-                nodeStats={nodeStats}
-                filtered={filtered}
-                total={activities.length}
-              />
-            </div>
+            <div className="rail-body">{controlPanel}</div>
           </aside>
         )}
 
         <section className="map-area">
           <MapView
-            activities={filtered}
+            dataset={dataset}
+            observations={filtered}
+            allObservations={observations}
             nodeStats={nodeStats}
             layers={layers}
             variant={variant}
             selectedId={selectedId}
             focus={focus}
-            onSelect={selectActivity}
+            onSelect={selectObservation}
             onSelectNode={selectNode}
           />
 
           <div className="map-legend">
-            <b>Legenda</b>
+            <b>Legenda · {dataset.label}</b>
             <ul>
               <li>
-                <i className="lg-dot" /> laporan warga — warna = tema hasil klasifikasi
+                <i className="lg-dot" /> titik data — warna = kategori
               </li>
               <li>
-                <i className="lg-ring" /> cincin merah = bernada keluhan
+                <i className="lg-ring" /> cincin gelap = {dataset.highlight.label.toLowerCase()}
               </li>
               <li>
                 <i className="lg-circle" /> lingkaran putus-putus = radius layanan 1 km
@@ -266,7 +310,12 @@ export default function App() {
                 Tabel Atribut · {filtered.length} baris <span>{tableOpen ? '▾' : '▴'}</span>
               </button>
               {tableOpen && (
-                <DataTable rows={filtered} selectedId={selectedId} onSelect={selectActivity} />
+                <DataTable
+                  dataset={dataset}
+                  rows={filtered}
+                  selectedId={selectedId}
+                  onSelect={selectObservation}
+                />
               )}
             </div>
           )}

@@ -1,55 +1,49 @@
 /**
  * TAHAP 4-5 (Ketentuan B.3): pengolahan data tidak terstruktur + AI.
  *
- * Data Community Maps hanya punya `title`, `description`, dan link media.
- * Tidak ada satu pun kolom kategori. Modul ini yang mengubah teks bebas itu
- * menjadi atribut terstruktur yang bisa difilter, diagregasi, dan dipetakan:
+ * ── PERAN AI BERBEDA PER DATASET ───────────────────────────────────────────
+ * Ini poin yang paling sering disamaratakan, padahal bedanya besar:
  *
- *   input  : title + description (teks bebas), jumlah images/videos
- *   proses : klasifikasi tema berbasis leksikon berbobot, ekstraksi tag,
- *            deteksi nada laporan, ekstraksi indikasi harga
- *   output : theme, tags, sentiment, priceHints, mediaScore, transitRelevance
+ *   Community Maps  — TIDAK ADA kolom kategori sama sekali. AI di sini
+ *                     *menciptakan* atribut dari nol lewat klasifikasi teks.
+ *                     Tanpa itu, datanya tidak bisa difilter atau diagregasi.
  *
- * ── CATATAN JUJUR SOAL "AI" ────────────────────────────────────────────────
- * Implementasi di bawah ini DETERMINISTIK (rule-based / bag-of-words), bukan
- * LLM. Dipakai karena: (a) jalan offline, gratis, dan instan; (b) hasilnya
- * bisa diaudit baris per baris — juri bisa diminta cek kenapa satu titik masuk
- * tema tertentu; (c) jadi baseline untuk mengukur apakah LLM benar-benar lebih
- * baik. Untuk versi kompetisi, ganti isi `classify()` dengan panggilan LLM
- * (lihat `enrichWithLLM` di bawah) dan simpan hasilnya sebagai kolom baru di
- * GeoJSON supaya WebGIS tetap ringan (inferensi dilakukan offline, sekali).
+ *   Menu Go /       — kategori SUDAH ADA di data mentah (Jenis Tempat Makan,
+ *   Struk Go /        Kategori Tempat, Kategori Properti). Mengklasifikasi
+ *   Properti Go       ulang dengan AI cuma akan menambah kesalahan. Nilai AI
+ *                     pindah ke pekerjaan lain: merapikan teks bebas (menu
+ *                     andalan, alamat), menarik indikasi harga, meringkas, dan
+ *                     — tahap berikutnya — membaca fotonya.
+ *
+ * Karena itu tiap observasi membawa `categorySource: 'data' | 'ai'`, dan UI
+ * menampilkannya. Angka yang berasal dari kolom asli panitia tidak boleh
+ * terlihat sama meyakinkannya dengan angka hasil tebakan model.
  */
 
-import type { Enrichment, RawActivity, Sentiment, ThemeId } from './types'
+import type { Category, Enrichment } from './types'
 
-export interface ThemeMeta {
-  id: ThemeId
-  label: string
-  short: string
-  color: string
+/* ── Kategori Community Maps (hasil klasifikasi, bukan kolom asli) ───────── */
+
+export interface CommunityCategory extends Category {
   /** Bobot relevansi terhadap isu transportasi massal (0-1). */
   transitWeight: number
 }
 
-export const THEMES: ThemeMeta[] = [
-  { id: 'mobilitas', label: 'Mobilitas & Lalu Lintas', short: 'Mobilitas', color: '#ef4444', transitWeight: 1.0 },
-  { id: 'ekonomi', label: 'Ekonomi & Kuliner', short: 'Ekonomi', color: '#f59e0b', transitWeight: 0.8 },
-  { id: 'infrastruktur', label: 'Infrastruktur & Fasilitas', short: 'Infrastruktur', color: '#8b5cf6', transitWeight: 0.75 },
-  { id: 'sosial', label: 'Sosial & Komunitas', short: 'Sosial', color: '#0ea5e9', transitWeight: 0.5 },
-  { id: 'lingkungan', label: 'Lingkungan', short: 'Lingkungan', color: '#22c55e', transitWeight: 0.45 },
-  { id: 'rekreasi', label: 'Rekreasi & Wisata', short: 'Rekreasi', color: '#ec4899', transitWeight: 0.4 },
-  { id: 'lainnya', label: 'Belum terklasifikasi', short: 'Lainnya', color: '#94a3b8', transitWeight: 0.3 },
+export const COMMUNITY_CATEGORIES: CommunityCategory[] = [
+  { id: 'mobilitas', label: 'Mobilitas & Lalu Lintas', color: '#ef4444', transitWeight: 1.0 },
+  { id: 'ekonomi', label: 'Ekonomi & Kuliner', color: '#f59e0b', transitWeight: 0.8 },
+  { id: 'infrastruktur', label: 'Infrastruktur & Fasilitas', color: '#8b5cf6', transitWeight: 0.75 },
+  { id: 'sosial', label: 'Sosial & Komunitas', color: '#0ea5e9', transitWeight: 0.5 },
+  { id: 'lingkungan', label: 'Lingkungan', color: '#22c55e', transitWeight: 0.45 },
+  { id: 'rekreasi', label: 'Rekreasi & Wisata', color: '#ec4899', transitWeight: 0.4 },
+  { id: 'lainnya', label: 'Belum terklasifikasi', color: '#94a3b8', transitWeight: 0.3 },
 ]
 
-export const themeMeta = (id: ThemeId): ThemeMeta =>
-  THEMES.find((t) => t.id === id) ?? THEMES[THEMES.length - 1]
-
 /**
- * Leksikon. Bobot 2 = kata kunci kuat (hampir pasti menentukan tema),
- * bobot 1 = kata pendukung. Sengaja pakai kata dasar tanpa imbuhan supaya
- * cocok dengan pencocokan substring pada teks yang sudah dinormalisasi.
+ * Leksikon. Bobot 2 = kata kunci kuat, bobot 1 = kata pendukung. Sengaja pakai
+ * kata dasar tanpa imbuhan supaya cocok dengan pencocokan substring.
  */
-const LEXICON: Record<Exclude<ThemeId, 'lainnya'>, Record<string, number>> = {
+const LEXICON: Record<string, Record<string, number>> = {
   mobilitas: {
     macet: 2, kemacetan: 2, 'lalu lintas': 2, bus: 2, terminal: 2, stasiun: 2,
     kereta: 2, angkot: 2, tol: 2, konvoi: 2, transportasi: 2, halte: 2,
@@ -83,10 +77,10 @@ const LEXICON: Record<Exclude<ThemeId, 'lainnya'>, Record<string, number>> = {
   },
 }
 
-const COMPLAINT_WORDS = [
+export const COMPLAINT_WORDS = [
   'macet', 'rusak', 'sampah', 'telat', 'masalah', 'kasian', 'belum',
-  'susah', 'sulit', 'naik dari', 'mahal', 'polusi', 'bau', 'antri',
-  'ngantri', 'gagal', 'kecewa', 'parah', 'banjir', '👎',
+  'susah', 'sulit', 'mahal', 'polusi', 'bau', 'antri', 'ngantri',
+  'gagal', 'kecewa', 'parah', 'banjir', '👎',
 ]
 
 const PRAISE_WORDS = [
@@ -99,157 +93,136 @@ const STOPWORDS = new Set([
   'ada', 'aja', 'juga', 'akan', 'pada', 'dan', 'atau', 'tapi', 'bgt', 'nih',
   'sih', 'ya', 'ga', 'nggak', 'gak', 'bisa', 'lebih', 'sudah', 'udah',
   'banyak', 'kalo', 'kalau', 'disini', 'sini', 'jadi', 'ke', 'di', 'yg',
+  'jalan', 'indonesia', 'kota', 'kabupaten',
 ])
 
-const normalizeText = (s: string) =>
-  (s || '')
-    .toLowerCase()
-    .replace(/[‘’“”]/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim()
+export const normalizeText = (s: string) =>
+  (s || '').toLowerCase().replace(/[‘’“”]/g, "'").replace(/\s+/g, ' ').trim()
 
-/** Klasifikasi tema: jumlahkan bobot kata kunci per tema, ambil skor tertinggi. */
-function classify(text: string): {
-  theme: ThemeId
+export const isComplaint = (text: string) => {
+  const t = normalizeText(text)
+  const bad = COMPLAINT_WORDS.filter((w) => t.includes(w)).length
+  const good = PRAISE_WORDS.filter((w) => t.includes(w)).length
+  return bad > good
+}
+
+/** Klasifikasi tema Community Maps: jumlahkan bobot kata kunci, ambil tertinggi. */
+export function classifyCommunityText(text: string): {
+  categoryId: string
   confidence: number
-  scores: Record<ThemeId, number>
 } {
-  const scores = Object.fromEntries(
-    THEMES.map((t) => [t.id, 0]),
-  ) as Record<ThemeId, number>
-
-  for (const [theme, words] of Object.entries(LEXICON)) {
+  const t = normalizeText(text)
+  const scores: Record<string, number> = {}
+  for (const [cat, words] of Object.entries(LEXICON)) {
+    scores[cat] = 0
     for (const [word, weight] of Object.entries(words)) {
-      if (text.includes(word)) scores[theme as ThemeId] += weight
+      if (t.includes(word)) scores[cat] += weight
     }
   }
 
-  const ranked = (Object.entries(scores) as [ThemeId, number][])
-    .filter(([id]) => id !== 'lainnya')
-    .sort((a, b) => b[1] - a[1])
-
+  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1])
   const [topId, topScore] = ranked[0]
   const secondScore = ranked[1]?.[1] ?? 0
-
-  if (topScore === 0) return { theme: 'lainnya', confidence: 0, scores }
+  if (topScore === 0) return { categoryId: 'lainnya', confidence: 0 }
 
   // Confidence menggabungkan dua hal yang berbeda, dan keduanya perlu:
   //   margin   — seberapa jauh pemenang unggul dari runner-up (ambiguitas)
-  //   evidence — seberapa banyak kata kunci yang benar-benar ketemu (kekuatan bukti)
-  // Tanpa suku `evidence`, teks yang cuma memicu satu kata (skor 2 vs 1) ikut
-  // dapat keyakinan tinggi padahal buktinya tipis. Skor 6 dianggap bukti penuh.
+  //   evidence — seberapa banyak kata kunci ketemu (kekuatan bukti)
+  // Tanpa suku `evidence`, teks yang cuma memicu satu kata (skor 2 lawan 1)
+  // ikut dapat keyakinan tinggi padahal buktinya tipis.
   const margin = (topScore - secondScore) / topScore
   const evidence = Math.min(1, topScore / 6)
-  const confidence = 0.6 * margin + 0.4 * evidence
-  return { theme: topId, confidence, scores }
+  return { categoryId: topId, confidence: 0.6 * margin + 0.4 * evidence }
 }
 
-function detectSentiment(text: string): Sentiment {
-  const complaints = COMPLAINT_WORDS.filter((w) => text.includes(w)).length
-  const praise = PRAISE_WORDS.filter((w) => text.includes(w)).length
-  if (complaints > praise) return 'keluhan'
-  if (praise > complaints) return 'apresiasi'
-  return 'netral'
-}
+/* ── Helper generik, dipakai semua dataset ───────────────────────────────── */
 
-/** Hashtag eksplisit + kata kunci leksikon yang benar-benar muncul di teks. */
-function extractTags(text: string, theme: ThemeId): string[] {
-  const tags = new Set<string>()
-
-  for (const m of text.matchAll(/#([\p{L}\p{N}_]+)/gu)) tags.add(m[1])
-
-  if (theme !== 'lainnya') {
-    for (const [word, weight] of Object.entries(LEXICON[theme])) {
-      if (weight === 2 && text.includes(word)) tags.add(word.replace(/[- ]/g, '_'))
-    }
-  }
-
-  // Kata bermakna terpanjang sebagai cadangan kalau belum ada tag sama sekali.
+/** Hashtag eksplisit + kata bermakna terpanjang sebagai cadangan. */
+export function extractTags(text: string, extra: string[] = []): string[] {
+  const t = normalizeText(text)
+  const tags = new Set<string>(extra.filter(Boolean).map((e) => e.toLowerCase()))
+  for (const m of t.matchAll(/#([\p{L}\p{N}_]+)/gu)) tags.add(m[1])
   if (tags.size === 0) {
-    const words = text
+    const words = t
       .replace(/[^\p{L}\p{N}\s]/gu, ' ')
       .split(/\s+/)
       .filter((w) => w.length > 4 && !STOPWORDS.has(w))
     for (const w of words.slice(0, 3)) tags.add(w)
   }
-
   return [...tags].slice(0, 6)
 }
 
 /** "44rb", "25 ribu", "Rp15.000" -> indikasi level harga di lokasi tersebut. */
-function extractPrices(text: string): string[] {
+export function extractPrices(text: string): string[] {
+  const t = normalizeText(text)
   const out = new Set<string>()
-  for (const m of text.matchAll(/(?:rp\s?)?(\d{1,3}(?:[.,]\d{3})+|\d{1,4})\s?(rb|ribu|k)\b/gi))
+  for (const m of t.matchAll(/(?:rp\s?)?(\d{1,3}(?:[.,]\d{3})+|\d{1,4})\s?(rb|ribu|k)\b/gi))
     out.add(m[0].trim())
-  for (const m of text.matchAll(/rp\s?\d{1,3}(?:[.,]\d{3})+/gi)) out.add(m[0].trim())
+  for (const m of t.matchAll(/rp\s?\d{1,3}(?:[.,]\d{3})+/gi)) out.add(m[0].trim())
   return [...out].slice(0, 4)
 }
 
-function buildSummary(
-  theme: ThemeId,
-  sentiment: Sentiment,
-  tags: string[],
-  prices: string[],
-): string {
-  const t = themeMeta(theme).short.toLowerCase()
-  const nada =
-    sentiment === 'keluhan'
-      ? 'dilaporkan sebagai keluhan warga'
-      : sentiment === 'apresiasi'
-        ? 'dilaporkan dengan nada positif'
-        : 'dilaporkan sebagai catatan netral'
-  const tagStr = tags.length ? ` Kata kunci: ${tags.slice(0, 3).join(', ')}.` : ''
-  const priceStr = prices.length ? ` Indikasi harga: ${prices.join(', ')}.` : ''
-  return `Aktivitas bertema ${t}, ${nada}.${tagStr}${priceStr}`
+/**
+ * Skor kelengkapan bukti visual. Video dihitung 2x foto: dokumentasi bergerak
+ * lebih informatif untuk verifikasi kondisi lapangan. Dinormalisasi pada 6
+ * "unit media" — dataset mission umumnya membawa 2-3 foto per baris, jadi
+ * ambang 10 (seperti versi pertama) membuat hampir semuanya bernilai rendah.
+ */
+export const mediaScore = (nImages: number, nVideos: number) =>
+  Math.min(1, (nImages + nVideos * 2) / 6)
+
+export interface EnrichInput {
+  title: string
+  description: string
+  images: string[]
+  videos: string[]
+  /** Bobot relevansi transit dari kategori (0-1). */
+  categoryWeight: number
+  categoryConfidence: number
+  categoryLabel: string
+  extraTags?: string[]
+  /** Teks tambahan yang ikut dipindai untuk harga & tag. */
+  extraText?: string
 }
 
-/** Pipeline enrichment untuk satu record. */
-export function enrichOne(raw: RawActivity): Enrichment {
-  const text = normalizeText(`${raw.title} ${raw.description}`)
-  const { theme, confidence, scores } = classify(text)
-  const sentiment = detectSentiment(text)
-  const tags = extractTags(text, theme)
+export function enrich(input: EnrichInput): Enrichment {
+  const text = `${input.title} ${input.description} ${input.extraText ?? ''}`
+  const tags = extractTags(text, input.extraTags ?? [])
   const priceHints = extractPrices(text)
-
-  const nImg = raw.images?.length ?? 0
-  const nVid = raw.videos?.length ?? 0
-  // Video dihitung 2x foto: dokumentasi bergerak lebih informatif untuk
-  // verifikasi kondisi lapangan. Dinormalisasi kasar pada 10 "unit media".
-  const mediaScore = Math.min(1, (nImg + nVid * 2) / 10)
+  const media = mediaScore(input.images.length, input.videos.length)
 
   const transitRelevance = Math.min(
     1,
-    themeMeta(theme).transitWeight * (0.6 + 0.4 * confidence),
+    input.categoryWeight * (0.6 + 0.4 * input.categoryConfidence),
   )
 
+  const tagStr = tags.length ? ` Kata kunci: ${tags.slice(0, 3).join(', ')}.` : ''
+  const priceStr = priceHints.length ? ` Indikasi harga: ${priceHints.join(', ')}.` : ''
+
   return {
-    theme,
-    themeConfidence: Number(confidence.toFixed(2)),
-    themeScores: scores,
     tags,
-    sentiment,
     priceHints,
-    mediaScore: Number(mediaScore.toFixed(2)),
+    mediaScore: Number(media.toFixed(2)),
     transitRelevance: Number(transitRelevance.toFixed(2)),
-    aiSummary: buildSummary(theme, sentiment, tags, priceHints),
+    categoryConfidence: Number(input.categoryConfidence.toFixed(2)),
+    aiSummary: `Kategori ${input.categoryLabel.toLowerCase()}.${tagStr}${priceStr}`,
   }
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
  * TITIK GANTI KE LLM SUNGGUHAN
  *
- * Untuk versi kompetisi, jalankan skrip offline (Node/Python) yang memanggil
- * model dengan prompt kira-kira seperti ini, lalu tulis hasilnya kembali ke
- * GeoJSON sebagai kolom `theme`, `tags`, `sentiment`, `aiSummary`:
+ * Jalankan skrip offline (Node/Python) yang memanggil model, lalu tulis
+ * hasilnya kembali ke GeoJSON sebagai kolom baru — supaya WebGIS tetap ringan
+ * (inferensi sekali di luar, bukan tiap kali halaman dibuka).
  *
- *   System: Kamu adalah pengklasifikasi laporan warga berbasis lokasi.
- *   User:   Judul: "{title}". Deskripsi: "{description}".
- *           Kembalikan JSON: { theme: one of [...], tags: string[],
- *           sentiment: "keluhan"|"netral"|"apresiasi", summary: string }
+ *   Community Maps → klasifikasi tema dari judul + deskripsi
+ *   Menu Go        → normalisasi "Menu Utama" jadi jenis masakan yang konsisten
+ *   Properti Go    → parsing "Alamat" jadi kelurahan/kecamatan terstruktur
+ *   Semua          → model multimodal atas kolom foto: kondisi bangunan, ada
+ *                    tidaknya undakan/ramp, keramaian — persis contoh yang
+ *                    panitia tulis di tabel C.2.
  *
- * Kolom `images` juga bisa dikirim ke model multimodal untuk klasifikasi
- * visual (contoh yang panitia sebut sendiri di tabel C.2: foto fasilitas ->
- * kategori kondisi fasilitas). Validasinya: ambil sampel acak ±30 titik,
- * beri label manual, hitung akurasi & Cohen's kappa terhadap output model —
- * angka itu yang dilaporkan di proposal, bukan klaim "pakai AI" saja.
+ * Validasi: ambil sampel acak ±30 baris, beri label manual, hitung akurasi &
+ * Cohen's kappa terhadap output model. Angka itu yang dilaporkan di proposal.
  * ─────────────────────────────────────────────────────────────────────────── */

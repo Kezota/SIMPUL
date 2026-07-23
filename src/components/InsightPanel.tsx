@@ -1,11 +1,12 @@
 import { buildRecommendations } from '../lib/ai'
 import { ACCESS_META } from '../lib/analysis'
-import { themeMeta } from '../lib/enrich'
+import { categoryOf } from '../data/datasets'
 import { formatDistance } from '../lib/geo'
-import type { Insights, NodeStats } from '../lib/types'
+import type { DatasetDef, Insights, NodeStats } from '../lib/types'
 import { BarList, Donut, Stat } from './charts'
 
 interface Props {
+  dataset: DatasetDef
   insights: Insights
   nodeStats: NodeStats[]
   onFocusNode: (nodeId: string) => void
@@ -13,21 +14,25 @@ interface Props {
 }
 
 const pct = (x: number) => `${Math.round(x * 100)}%`
+const rupiah = (n: number) => `Rp${Math.round(n).toLocaleString('id-ID')}`
 
 export default function InsightPanel({
+  dataset,
   insights,
   nodeStats,
   onFocusNode,
   activeNodeId,
 }: Props) {
-  const recs = buildRecommendations(insights, nodeStats)
+  const recs = buildRecommendations(insights, nodeStats, dataset)
 
   return (
     <div className="panel">
       <div className="panel-head">
         <h2>Insight</h2>
-        <span className="count-pill">{insights.total} laporan</span>
+        <span className="count-pill">{insights.total} titik</span>
       </div>
+
+      <p className="block-note dataset-blurb">{dataset.blurb}</p>
 
       <section className="block">
         <h3>Angka utama</h3>
@@ -35,33 +40,40 @@ export default function InsightPanel({
           <Stat
             label="Dalam 1 km simpul"
             value={pct(insights.coverageRatio)}
-            sub={`${insights.withinServiceArea} dari ${insights.total} laporan`}
+            sub={`${insights.withinServiceArea} dari ${insights.total} titik`}
             tone={insights.coverageRatio >= 0.5 ? 'good' : 'warn'}
           />
           <Stat
             label="Jarak median ke simpul"
             value={formatDistance(insights.medianDistanceM)}
-            sub="Separuh laporan lebih dekat dari ini"
+            sub="Separuh titik lebih dekat dari ini"
           />
           <Stat
-            label="Bernada keluhan"
-            value={pct(insights.complaintRatio)}
-            sub="Hasil deteksi nada dari teks"
-            tone={insights.complaintRatio > 0.3 ? 'bad' : 'default'}
+            label={dataset.highlight.label}
+            value={pct(insights.highlightRatio)}
+            sub={dataset.highlight.hint}
           />
-          <Stat
-            label="Di luar jangkauan"
-            value={`${insights.blankSpots.length}`}
-            sub="Lebih dari 2 km dari simpul mana pun"
-            tone={insights.blankSpots.length > 0 ? 'warn' : 'good'}
-          />
+          {insights.medianPrice !== null ? (
+            <Stat
+              label="Harga median"
+              value={rupiah(insights.medianPrice)}
+              sub="Diisi surveyor, bukan hasil baca struk"
+            />
+          ) : (
+            <Stat
+              label="Di luar jangkauan"
+              value={`${insights.blankSpots.length}`}
+              sub="Lebih dari 2 km dari simpul mana pun"
+              tone={insights.blankSpots.length > 0 ? 'warn' : 'good'}
+            />
+          )}
         </div>
       </section>
 
       <section className="block">
         <h3>Indeks Denyut Transit per simpul</h3>
         <p className="block-note">
-          40% volume (diluruhkan terhadap jarak) + 30% relevansi tema + 30%
+          40% volume (diluruhkan terhadap jarak) + 30% relevansi kategori + 30%
           kelengkapan bukti visual. Abu-abu = simpul tanpa catchment sama sekali.
           Klik untuk memfokuskan peta.
         </p>
@@ -72,22 +84,24 @@ export default function InsightPanel({
             value: n.pulseIndex,
             color: n.count === 0 ? '#cbd5e1' : '#0ea5e9',
             active: activeNodeId === n.node.id,
-            hint: `${n.node.name}: ${n.count} laporan di catchment (${n.withinRadius} dalam radius jalan kaki), denyut ${n.pulseIndex}/100`,
+            hint: `${n.node.name}: ${n.count} titik di catchment (${n.withinRadius} dalam radius jalan kaki), denyut ${n.pulseIndex}/100`,
             onClick: () => onFocusNode(n.node.id),
           }))}
         />
       </section>
 
       <section className="block">
-        <h3>Komposisi tema</h3>
+        <h3>Komposisi kategori</h3>
         <p className="block-note">
-          Hasil klasifikasi teks — tidak ada kolom kategori di data mentah.
+          {dataset.categorySource === 'ai'
+            ? 'Hasil klasifikasi teks — tidak ada kolom kategori di data mentah.'
+            : 'Diambil langsung dari kolom kategori data panitia.'}
         </p>
         <BarList
-          data={insights.themeCounts.map((t) => ({
-            label: themeMeta(t.theme).short,
-            value: t.count,
-            color: themeMeta(t.theme).color,
+          data={insights.categoryCounts.slice(0, 10).map((c) => ({
+            label: categoryOf(dataset, c.categoryId).label,
+            value: c.count,
+            color: categoryOf(dataset, c.categoryId).color,
           }))}
         />
       </section>

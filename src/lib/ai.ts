@@ -1,67 +1,71 @@
 /**
  * AI INTERFACE (Ketentuan C — "AI wajib hadir di dalam interface WebGIS").
  *
- * Modul ini menerjemahkan pertanyaan bahasa alami menjadi:
+ * Menerjemahkan pertanyaan bahasa alami menjadi:
  *   1. aksi peta   (filter + fly-to)  -> jawaban muncul DI PETA, bukan cuma teks
  *   2. narasi      (jawaban tertulis) -> insight yang bisa dibaca
  *   3. jejak nalar (reasoning trace)  -> supaya input/proses/output bisa diaudit
  *
- * ── LAGI-LAGI: INI BELUM LLM ───────────────────────────────────────────────
- * Yang dipakai di sini adalah intent parser + template narasi yang membaca
- * hasil analisis nyata. Konsekuensinya jujur: dia hanya paham pola pertanyaan
- * yang sudah diantisipasi, dan akan bilang "belum paham" kalau meleset.
+ * ── INI BELUM LLM ──────────────────────────────────────────────────────────
+ * Yang dipakai adalah intent parser + template narasi yang membaca hasil
+ * analisis nyata. Konsekuensinya jujur: dia hanya paham pola pertanyaan yang
+ * sudah diantisipasi, dan akan bilang "belum paham" kalau meleset.
  *
- * Kenapa tetap ditulis begini dulu:
- *   - jawabannya TIDAK PERNAH mengarang angka; semua angka ditarik dari
- *     computeInsights()/computeNodeStats(). Ini bagian yang justru harus
- *     dipertahankan waktu nanti pindah ke LLM.
- *   - kontraknya (`AIResponse`) sudah final, jadi swap ke LLM = ganti isi
- *     `ask()` saja, komponen UI tidak berubah.
+ * Yang justru harus dipertahankan waktu pindah ke LLM: jawabannya TIDAK PERNAH
+ * mengarang angka — semuanya ditarik dari computeInsights()/computeNodeStats().
+ * Rancangan versi LLM memakai tool use:
  *
- * Rencana versi LLM (function calling / tool use):
- *   tools = [ setMapFilter(themes, access, onlyComplaints, maxDistanceM),
- *             flyTo(lat, lon, zoom),
- *             getNodeStats(nodeId), getInsights() ]
- *   Model TIDAK diberi akses menulis angka bebas — dia hanya boleh memanggil
- *   tool lalu merangkai kalimat dari nilai yang dikembalikan tool. Itu yang
- *   membuat halusinasi angka nyaris mustahil, dan itu poin yang layak ditulis
- *   di bagian "validasi hasil AI" pada proposal.
+ *   tools = [ setMapFilter(categories, access, onlyHighlighted, maxDistanceM),
+ *             flyTo(lat, lon, zoom), getNodeStats(nodeId), getInsights() ]
+ *
+ * Model tidak diberi izin menulis angka bebas — ia hanya boleh memanggil tool
+ * lalu merangkai kalimat dari nilai yang dikembalikan. Itu yang membuat
+ * halusinasi angka nyaris mustahil, dan itu poin yang layak ditulis di bagian
+ * "validasi hasil AI" pada proposal.
  */
 
+import { categoryOf } from '../data/datasets'
 import { ACCESS_META } from './analysis'
-import { THEMES, themeMeta } from './enrich'
 import { formatDistance } from './geo'
-import type { AccessClass, Activity, Filters, Insights, NodeStats, ThemeId } from './types'
+import type {
+  AccessClass,
+  DatasetDef,
+  Filters,
+  Insights,
+  NodeStats,
+  Observation,
+} from './types'
 
 export interface AIResponse {
   answer: string
-  /** Perubahan filter yang langsung diterapkan ke peta. */
   filters: Partial<Filters>
   focus: { lat: number; lon: number; zoom: number } | null
-  /** Langkah yang ditempuh — ditampilkan sebagai "jejak nalar" di UI. */
   trace: string[]
-  /** Angka pendukung yang ditampilkan sebagai chip di bawah jawaban. */
   facts: { label: string; value: string }[]
 }
 
+export interface AIContext {
+  dataset: DatasetDef
+  observations: Observation[]
+  nodeStats: NodeStats[]
+  insights: Insights
+}
+
 const pct = (x: number) => `${Math.round(x * 100)}%`
+const rupiah = (n: number) => `Rp${Math.round(n).toLocaleString('id-ID')}`
 
 /* ── Intent detection ─────────────────────────────────────────────────────── */
 
-function detectThemes(q: string): ThemeId[] {
-  const hits: ThemeId[] = []
-  const alias: Record<string, ThemeId> = {
-    macet: 'mobilitas', transportasi: 'mobilitas', mobilitas: 'mobilitas',
-    'lalu lintas': 'mobilitas', angkutan: 'mobilitas', kereta: 'mobilitas',
-    ekonomi: 'ekonomi', kuliner: 'ekonomi', makan: 'ekonomi', pasar: 'ekonomi',
-    harga: 'ekonomi', warung: 'ekonomi', dagang: 'ekonomi', umkm: 'ekonomi',
-    lingkungan: 'lingkungan', sampah: 'lingkungan', sungai: 'lingkungan',
-    infrastruktur: 'infrastruktur', jalan: 'infrastruktur', fasilitas: 'infrastruktur',
-    sosial: 'sosial', warga: 'sosial', komunitas: 'sosial',
-    rekreasi: 'rekreasi', wisata: 'rekreasi', olahraga: 'rekreasi',
-  }
-  for (const [word, theme] of Object.entries(alias)) {
-    if (q.includes(word) && !hits.includes(theme)) hits.push(theme)
+/** Cocokkan kata di pertanyaan dengan label kategori dataset aktif. */
+function detectCategories(q: string, ds: DatasetDef): string[] {
+  const hits: string[] = []
+  for (const c of ds.categories) {
+    const words = c.label
+      .toLowerCase()
+      .replace(/\(.*?\)/g, '')
+      .split(/[^a-z]+/)
+      .filter((w) => w.length > 3)
+    if (words.some((w) => q.includes(w))) hits.push(c.id)
   }
   return hits
 }
@@ -70,10 +74,9 @@ function detectNode(q: string, nodes: NodeStats[]): NodeStats | null {
   let best: NodeStats | null = null
   let bestLen = 0
   for (const n of nodes) {
-    // Cocokkan kata inti nama simpul: "kiaracondong", "padalarang", "cimahi".
     const words = n.node.name
       .toLowerCase()
-      .replace(/stasiun|terminal|whoosh/g, '')
+      .replace(/stasiun|terminal|whoosh|universitas/g, '')
       .trim()
       .split(/\s+/)
       .filter((w) => w.length > 3)
@@ -99,35 +102,36 @@ function detectRadiusM(q: string): number | null {
 
 /* ── Narasi ───────────────────────────────────────────────────────────────── */
 
-export function describeNode(n: NodeStats): string {
+export function describeNode(n: NodeStats, ds: DatasetDef): string {
   if (n.count === 0) {
-    return `${n.node.name} tidak menjadi simpul terdekat bagi satu pun laporan warga di dataset ini. Simpul tersebut "sunyi": bukan berarti kawasannya mati, tapi berarti tidak ada mata warga yang merekamnya — itu sendiri sudah temuan, dan jadi kandidat prioritas survey lapangan.`
+    return `${n.node.name} tidak menjadi simpul terdekat bagi satu pun titik di dataset ${ds.label}. Simpul ini "sunyi": bukan berarti kawasannya mati, tapi berarti belum ada data yang merekamnya — itu sendiri sudah temuan, dan jadi kandidat prioritas survey lapangan.`
   }
-  const dom = n.dominantTheme ? themeMeta(n.dominantTheme).short.toLowerCase() : '-'
-  const mix = n.themeMix
+
+  const dom = n.dominantCategory ? categoryOf(ds, n.dominantCategory).label : '—'
+  const mix = n.categoryMix
     .slice(0, 3)
-    .map((t) => `${themeMeta(t.theme).short} (${t.count})`)
+    .map((c) => `${categoryOf(ds, c.categoryId).label} (${c.count})`)
     .join(', ')
-  const keluhan =
-    n.complaintCount > 0
-      ? ` ${n.complaintCount} dari ${n.count} laporan bernada keluhan (${pct(n.complaintRatio)}).`
-      : ' Tidak ada laporan bernada keluhan di sini.'
+
   const walkable =
     n.withinRadius > 0
-      ? `${n.withinRadius} di antaranya benar-benar dalam radius jalan kaki ${formatDistance(
-          n.node.serviceRadiusM,
-        )}`
-      : `tidak satu pun berada dalam radius jalan kaki ${formatDistance(
-          n.node.serviceRadiusM,
-        )} — kawasannya bergantung pada simpul ini tapi tidak bisa mencapainya dengan kaki`
-  return `${n.node.name} punya Indeks Denyut Transit ${n.pulseIndex}/100. Ada ${n.count} laporan warga yang simpul terdekatnya adalah tempat ini, dan ${walkable}. Tema dominan: ${dom}. Komposisi: ${mix}.${keluhan} Jarak rata-rata ${formatDistance(
-    n.avgDistanceM,
-  )}.`
+      ? `${n.withinRadius} di antaranya benar-benar dalam radius jalan kaki ${formatDistance(n.node.serviceRadiusM)}`
+      : `tidak satu pun berada dalam radius jalan kaki ${formatDistance(n.node.serviceRadiusM)} — kawasannya bergantung pada simpul ini tapi tidak bisa mencapainya dengan kaki`
+
+  const hl =
+    n.highlightCount > 0
+      ? ` ${n.highlightCount} dari ${n.count} masuk kategori "${ds.highlight.label}" (${pct(n.highlightRatio)}).`
+      : ` Tidak ada yang masuk kategori "${ds.highlight.label}" di sini.`
+
+  const price = n.medianPrice !== null ? ` Harga median ${rupiah(n.medianPrice)}.` : ''
+
+  return `${n.node.name} punya Indeks Denyut Transit ${n.pulseIndex}/100. Ada ${n.count} titik yang simpul terdekatnya adalah tempat ini, dan ${walkable}. Kategori dominan: ${dom}. Komposisi: ${mix}.${hl}${price} Jarak rata-rata ${formatDistance(n.avgDistanceM)}.`
 }
 
 export function buildRecommendations(
   insights: Insights,
   nodeStats: NodeStats[],
+  ds: DatasetDef,
 ): { title: string; body: string; target: string }[] {
   const recs: { title: string; body: string; target: string }[] = []
 
@@ -137,19 +141,18 @@ export function buildRecommendations(
       title: `Prioritaskan survey di ${silent.length} simpul sunyi`,
       body: `${silent
         .map((n) => n.node.name)
-        .join(', ')} belum punya satu pun laporan warga dalam radius layanannya. Ini titik buta data, bukan bukti kawasan sepi. Survey activities MAPID APPS sebaiknya diarahkan ke sini lebih dulu supaya indeks tidak bias ke wilayah yang kebetulan ramai kontributor.`,
+        .join(', ')} belum menjadi simpul terdekat bagi satu pun titik ${ds.label}. Ini titik buta data, bukan bukti kawasan sepi. Survey activities MAPID APPS sebaiknya diarahkan ke sini lebih dulu supaya indeksnya tidak bias ke wilayah yang kebetulan ramai kontributor.`,
       target: 'Tim survey / panitia',
     })
   }
 
   if (insights.topNode) {
+    const dom = insights.topNode.dominantCategory
+      ? categoryOf(ds, insights.topNode.dominantCategory).label.toLowerCase()
+      : '—'
     recs.push({
       title: `${insights.topNode.node.name} adalah kandidat kuat pengembangan kawasan`,
-      body: `Denyut tertinggi (${insights.topNode.pulseIndex}/100) dengan tema dominan ${
-        insights.topNode.dominantTheme
-          ? themeMeta(insights.topNode.dominantTheme).short.toLowerCase()
-          : '-'
-      }. Aktivitas ekonomi yang sudah tumbuh sendiri di sekitar simpul adalah modal awal — intervensi yang masuk akal di sini bukan membangun dari nol, tapi merapikan: penataan pedagang, jalur pejalan kaki dari pintu keluar, dan informasi jadwal di titik keramaian.`,
+      body: `Denyut tertinggi (${insights.topNode.pulseIndex}/100) dengan kategori dominan ${dom}. Aktivitas yang sudah tumbuh sendiri di sekitar simpul adalah modal awal — intervensi yang masuk akal bukan membangun dari nol, tapi merapikan: jalur pejalan kaki dari pintu keluar, penataan pedagang, dan informasi jadwal di titik keramaian.`,
       target: 'Operator stasiun / Pemda',
     })
   }
@@ -157,21 +160,19 @@ export function buildRecommendations(
   if (insights.blankSpots.length) {
     const far = insights.blankSpots[0]
     recs.push({
-      title: `${insights.blankSpots.length} aktivitas berada di luar jangkauan semua simpul`,
-      body: `Terjauh: "${far.title}" di ${formatDistance(
-        far.distanceM,
-      )} dari ${far.nearestNodeName}. Kelompok titik ini kandidat rute feeder / angkutan pengumpan. Analisis lanjutannya: clustering titik-titik luar jangkauan, lalu tarik rute yang menyentuh cluster terbesar menuju simpul terdekat.`,
+      title: `${insights.blankSpots.length} titik berada di luar jangkauan semua simpul`,
+      body: `Terjauh: "${far.title}" di ${formatDistance(far.distanceM)} dari ${far.nearestNodeName}. Kelompok ini kandidat rute feeder / angkutan pengumpan. Analisis lanjutannya: clustering titik luar jangkauan, lalu tarik rute yang menyentuh cluster terbesar menuju simpul terdekat.`,
       target: 'Dinas Perhubungan',
     })
   }
 
-  const complaintNodes = nodeStats
-    .filter((n) => n.count >= 2 && n.complaintRatio >= 0.3)
+  const hotspots = nodeStats
+    .filter((n) => n.count >= 2 && n.highlightRatio >= 0.4)
     .slice(0, 2)
-  for (const n of complaintNodes) {
+  for (const n of hotspots) {
     recs.push({
-      title: `Konsentrasi keluhan di sekitar ${n.node.name}`,
-      body: `${pct(n.complaintRatio)} laporan di radius simpul ini bernada keluhan. Karena setiap laporan Community Maps membawa foto, tiap keluhan bisa diverifikasi visual sebelum ditindaklanjuti — ini yang membedakannya dari kanal aduan berbasis teks.`,
+      title: `Konsentrasi "${ds.highlight.label}" di sekitar ${n.node.name}`,
+      body: `${pct(n.highlightRatio)} titik di catchment simpul ini masuk kategori tersebut (${ds.highlight.hint}). Karena setiap baris ${ds.label} membawa foto, temuan ini bisa diverifikasi visual sebelum ditindaklanjuti — itu yang membedakannya dari data tabular biasa.`,
       target: 'Pemda / operator',
     })
   }
@@ -181,33 +182,33 @@ export function buildRecommendations(
 
 /* ── Entry point ──────────────────────────────────────────────────────────── */
 
-export function ask(
-  question: string,
-  ctx: { activities: Activity[]; nodeStats: NodeStats[]; insights: Insights },
-): AIResponse {
+export function ask(question: string, ctx: AIContext): AIResponse {
   const q = question.toLowerCase().trim()
-  const trace: string[] = [`Input: "${question}"`]
+  const ds = ctx.dataset
+  const trace: string[] = [`Input: "${question}"`, `Dataset aktif: ${ds.label}`]
   const facts: { label: string; value: string }[] = []
   const filters: Partial<Filters> = {}
   let focus: AIResponse['focus'] = null
 
-  const themes = detectThemes(q)
+  const categories = detectCategories(q, ds)
   const node = detectNode(q, ctx.nodeStats)
   const radiusM = detectRadiusM(q)
-  const wantsComplaints = /keluhan|masalah|aduan|rusak|mengeluh|negatif/.test(q)
+  const wantsHighlight =
+    /keluhan|masalah|aduan|rusak|ramai|non-?tunai|qris|cashless|kos\b/.test(q) ||
+    q.includes(ds.highlight.label.toLowerCase())
   const wantsBlank = /blank|luar jangkauan|tidak terlayani|jauh dari|terpencil/.test(q)
   const wantsCompare = /banding|vs|dibanding|lebih ramai|paling/.test(q)
   const wantsRecommend = /rekomendasi|saran|usul|harus|prioritas/.test(q)
+  const wantsPrice = /harga|murah|mahal|rupiah|biaya/.test(q)
 
   trace.push(
-    `Ekstraksi intent → tema: ${themes.length ? themes.join(', ') : '-'} | simpul: ${
+    `Ekstraksi intent → kategori: ${categories.length ? categories.join(', ') : '-'} | simpul: ${
       node?.node.name ?? '-'
-    } | radius: ${radiusM ? formatDistance(radiusM) : '-'} | keluhan: ${wantsComplaints}`,
+    } | radius: ${radiusM ? formatDistance(radiusM) : '-'} | highlight: ${wantsHighlight}`,
   )
 
-  // Terapkan filter yang terdeteksi ke peta.
-  if (themes.length) filters.themes = themes
-  if (wantsComplaints) filters.onlyComplaints = true
+  if (categories.length) filters.categories = categories
+  if (wantsHighlight) filters.onlyHighlighted = true
   if (radiusM) filters.maxDistanceM = radiusM
   if (node) {
     filters.nodeId = node.node.id
@@ -215,81 +216,93 @@ export function ask(
   }
   if (wantsBlank) {
     filters.access = ['luar'] as AccessClass[]
-    filters.maxDistanceM = 20000
+    filters.maxDistanceM = 40000
   }
 
-  // Hitung subset yang cocok, supaya narasi memakai angka nyata.
-  const subset = ctx.activities.filter((a) => {
-    if (filters.themes?.length && !filters.themes.includes(a.theme)) return false
-    if (filters.onlyComplaints && a.sentiment !== 'keluhan') return false
-    if (filters.access?.length && !filters.access.includes(a.accessClass)) return false
-    if (filters.maxDistanceM != null && a.distanceM > filters.maxDistanceM) return false
-    if (filters.nodeId && a.nearestNodeId !== filters.nodeId) return false
+  const subset = ctx.observations.filter((o) => {
+    if (filters.categories?.length && !filters.categories.includes(o.categoryId)) return false
+    if (filters.onlyHighlighted && !o.highlighted) return false
+    if (filters.access?.length && !filters.access.includes(o.accessClass)) return false
+    if (filters.maxDistanceM != null && o.distanceM > filters.maxDistanceM) return false
+    if (filters.nodeId && o.nearestNodeId !== filters.nodeId) return false
     return true
   })
-  trace.push(`Query spasial → ${subset.length} dari ${ctx.activities.length} titik cocok`)
+  trace.push(`Query spasial → ${subset.length} dari ${ctx.observations.length} titik cocok`)
 
   let answer: string
 
   if (wantsRecommend) {
-    const recs = buildRecommendations(ctx.insights, ctx.nodeStats)
-    answer =
-      recs.length > 0
-        ? `${recs.length} rekomendasi tersusun dari hasil analisis:\n\n` +
-          recs.map((r, i) => `${i + 1}. ${r.title} — ${r.body}`).join('\n\n')
-        : 'Belum ada rekomendasi yang bisa disusun dari subset data saat ini.'
+    const recs = buildRecommendations(ctx.insights, ctx.nodeStats, ds)
+    answer = recs.length
+      ? `${recs.length} rekomendasi tersusun dari hasil analisis ${ds.label}:\n\n` +
+        recs.map((r, i) => `${i + 1}. ${r.title} — ${r.body}`).join('\n\n')
+      : 'Belum ada rekomendasi yang bisa disusun dari subset data saat ini.'
     trace.push('Rute: penyusunan rekomendasi dari insight level kota')
   } else if (wantsCompare && !node) {
     const top = ctx.insights.topNode
     const weak = ctx.insights.weakestNode
     answer = top
-      ? `Simpul dengan denyut tertinggi adalah ${top.node.name} (${top.pulseIndex}/100, ${
-          top.count
-        } laporan).${
+      ? `Simpul dengan denyut tertinggi adalah ${top.node.name} (${top.pulseIndex}/100, ${top.count} titik).${
           weak
-            ? ` Yang terendah di antara simpul yang punya data adalah ${weak.node.name} (${weak.pulseIndex}/100, ${weak.count} laporan).`
+            ? ` Yang terendah di antara simpul yang punya data adalah ${weak.node.name} (${weak.pulseIndex}/100, ${weak.count} titik).`
             : ''
-        } Selisihnya bukan sekadar soal ramai — Indeks Denyut menimbang volume laporan, relevansi temanya terhadap isu transit, dan kelengkapan buktinya.`
+        } Selisihnya bukan sekadar soal ramai — Indeks Denyut menimbang volume yang diluruhkan terhadap jarak, relevansi kategori, dan kelengkapan bukti visual.`
       : 'Belum ada simpul dengan data yang cukup untuk dibandingkan.'
     if (top) {
-      focus = { lat: top.node.lat, lon: top.node.lon, zoom: 13 }
+      focus = { lat: top.node.lat, lon: top.node.lon, zoom: 12 }
       facts.push({ label: 'Denyut tertinggi', value: `${top.pulseIndex}/100` })
     }
     trace.push('Rute: perbandingan antar simpul')
   } else if (node) {
-    answer = describeNode(node)
-    if (subset.length && (themes.length || wantsComplaints)) {
+    answer = describeNode(node, ds)
+    if (subset.length && (categories.length || wantsHighlight)) {
       answer += `\n\nDengan filter yang kamu minta, tersisa ${subset.length} titik: ${subset
         .slice(0, 5)
-        .map((a) => `"${a.title}"`)
+        .map((o) => `"${o.title}"`)
         .join(', ')}${subset.length > 5 ? ', …' : ''}.`
     }
     facts.push(
       { label: 'Indeks Denyut', value: `${node.pulseIndex}/100` },
-      { label: 'Laporan', value: `${node.count}` },
-      { label: 'Rasio keluhan', value: pct(node.complaintRatio) },
+      { label: 'Titik di catchment', value: `${node.count}` },
+      { label: ds.highlight.label, value: pct(node.highlightRatio) },
     )
-    trace.push('Rute: profil satu simpul + agregasi radius layanan')
+    trace.push('Rute: profil satu simpul + agregasi catchment')
   } else if (wantsBlank) {
     const bs = ctx.insights.blankSpots
     answer = bs.length
-      ? `Ada ${bs.length} aktivitas yang berjarak lebih dari 2 km dari simpul transit mana pun — praktis tidak terlayani. Terjauh: "${
+      ? `Ada ${bs.length} titik yang berjarak lebih dari 2 km dari simpul transit mana pun — praktis tidak terlayani. Terjauh: "${
           bs[0].title
         }" (${formatDistance(bs[0].distanceM)} dari ${bs[0].nearestNodeName}). Ini kelompok yang paling butuh angkutan pengumpan.`
-      : 'Semua aktivitas dalam dataset ini berada dalam 2 km dari sebuah simpul transit.'
+      : `Semua titik ${ds.label} berada dalam 2 km dari sebuah simpul transit.`
     if (bs.length) focus = { lat: bs[0].lat, lon: bs[0].lon, zoom: 12 }
     facts.push({ label: 'Titik luar jangkauan', value: `${bs.length}` })
     trace.push('Rute: deteksi blank spot berdasarkan kelas akses')
-  } else if (themes.length || wantsComplaints || radiusM) {
-    const inti = subset.filter((a) => a.accessClass === 'inti' || a.accessClass === 'dekat').length
-    const label = themes.map((t) => themeMeta(t).short.toLowerCase()).join(' & ') || 'sesuai filter'
+  } else if (wantsPrice && ctx.insights.medianPrice !== null) {
+    const sorted = [...ctx.observations]
+      .filter((o) => o.price !== null)
+      .sort((a, b) => a.price! - b.price!)
+    answer = `Harga median di dataset ${ds.label} adalah ${rupiah(
+      ctx.insights.medianPrice,
+    )}. Termurah: "${sorted[0].title}" (${rupiah(sorted[0].price!)}), termahal: "${
+      sorted[sorted.length - 1].title
+    }" (${rupiah(sorted[sorted.length - 1].price!)}). Perlu dicatat: harga ini harga rata-rata per porsi yang diisi surveyor, bukan hasil pembacaan struk.`
+    facts.push({ label: 'Harga median', value: rupiah(ctx.insights.medianPrice) })
+    focus = { lat: sorted[0].lat, lon: sorted[0].lon, zoom: 13 }
+    trace.push('Rute: statistik harga')
+  } else if (categories.length || wantsHighlight || radiusM) {
+    const walk = subset.filter(
+      (o) => o.accessClass === 'inti' || o.accessClass === 'dekat',
+    ).length
+    const label =
+      categories.map((c) => categoryOf(ds, c).label.toLowerCase()).join(' & ') ||
+      'sesuai filter'
     answer = subset.length
-      ? `Ketemu ${subset.length} aktivitas ${label}${
-          wantsComplaints ? ' bernada keluhan' : ''
-        }${radiusM ? ` dalam ${formatDistance(radiusM)} dari simpul terdekat` : ''}. ${inti} di antaranya (${pct(
-          subset.length ? inti / subset.length : 0,
-        )}) berada dalam catchment pejalan kaki 1 km. Titik-titiknya sudah disorot di peta.`
-      : `Tidak ada aktivitas yang cocok dengan kombinasi filter itu. Coba longgarkan salah satu syaratnya.`
+      ? `Ketemu ${subset.length} titik ${label}${
+          wantsHighlight ? ` yang masuk kategori "${ds.highlight.label}"` : ''
+        }${radiusM ? ` dalam ${formatDistance(radiusM)} dari simpul terdekat` : ''}. ${walk} di antaranya (${pct(
+          subset.length ? walk / subset.length : 0,
+        )}) berada dalam catchment pejalan kaki 1 km. Titiknya sudah disorot di peta.`
+      : 'Tidak ada titik yang cocok dengan kombinasi filter itu. Coba longgarkan salah satu syaratnya.'
     if (subset.length) {
       focus = { lat: subset[0].lat, lon: subset[0].lon, zoom: 12 }
       facts.push({ label: 'Hasil', value: `${subset.length} titik` })
@@ -297,28 +310,28 @@ export function ask(
     trace.push('Rute: pencarian atribut + spasial')
   } else if (/ringkas|rangkum|summary|overview|jelaskan|kondisi|gambaran/.test(q)) {
     const i = ctx.insights
-    answer = `Dari ${i.total} laporan warga di koridor Bandung Raya, ${
+    answer = `Dataset ${ds.label} berisi ${i.total} titik. ${
       i.withinServiceArea
-    } (${pct(i.coverageRatio)}) berada dalam 1 km dari stasiun atau terminal. Jarak median ke simpul terdekat ${formatDistance(
+    } (${pct(i.coverageRatio)}) berada dalam 1 km dari stasiun atau terminal, dengan jarak median ${formatDistance(
       i.medianDistanceM,
-    )}. Tema terbanyak: ${i.themeCounts
+    )}. Kategori terbanyak: ${i.categoryCounts
       .slice(0, 3)
-      .map((t) => `${themeMeta(t.theme).short} (${t.count})`)
-      .join(', ')}. ${pct(i.complaintRatio)} laporan bernada keluhan.${
-      i.topNode ? ` Simpul paling "hidup": ${i.topNode.node.name} (${i.topNode.pulseIndex}/100).` : ''
-    }`
+      .map((c) => `${categoryOf(ds, c.categoryId).label} (${c.count})`)
+      .join(', ')}. ${pct(i.highlightRatio)} masuk kategori "${ds.highlight.label}".${
+      i.medianPrice !== null ? ` Harga median ${rupiah(i.medianPrice)}.` : ''
+    }${i.topNode ? ` Simpul paling "hidup": ${i.topNode.node.name} (${i.topNode.pulseIndex}/100).` : ''}`
     facts.push(
       { label: 'Cakupan 1 km', value: pct(i.coverageRatio) },
       { label: 'Jarak median', value: formatDistance(i.medianDistanceM) },
-      { label: 'Rasio keluhan', value: pct(i.complaintRatio) },
+      { label: ds.highlight.label, value: pct(i.highlightRatio) },
     )
     trace.push('Rute: ringkasan level kota')
   } else {
-    answer = `Belum paham maksud pertanyaannya. Yang bisa aku jawab sekarang: ringkasan kondisi keseluruhan, profil satu stasiun/terminal (sebut namanya), pencarian per tema (${THEMES.slice(
-      0,
-      4,
-    )
-      .map((t) => t.short.toLowerCase())
+    answer = `Belum paham maksud pertanyaannya. Yang bisa aku jawab untuk dataset ${
+      ds.label
+    }: ringkasan kondisi keseluruhan, profil satu stasiun/terminal (sebut namanya), pencarian per kategori (${ds.categories
+      .slice(0, 3)
+      .map((c) => c.label.toLowerCase())
       .join(', ')}), titik di luar jangkauan transit, perbandingan antar simpul, dan rekomendasi.`
     trace.push('Rute: fallback — intent tidak dikenali')
   }
@@ -327,14 +340,20 @@ export function ask(
   return { answer, filters, focus, trace, facts }
 }
 
-export const SUGGESTED_QUESTIONS = [
-  'Ringkas kondisi keseluruhan',
-  'Bagaimana kondisi Stasiun Cimahi?',
-  'Mana aktivitas ekonomi dalam 1 km dari simpul?',
-  'Tunjukkan titik di luar jangkauan transit',
-  'Simpul mana yang paling ramai?',
-  'Apa rekomendasi untuk Dinas Perhubungan?',
-  'Di mana keluhan warga menumpuk?',
-]
+/** Pertanyaan contoh — ikut menyesuaikan dataset yang sedang aktif. */
+export function suggestedQuestions(ds: DatasetDef, nodeStats: NodeStats[]): string[] {
+  const busiest = nodeStats.find((n) => n.count > 0)?.node.name ?? 'Stasiun Bandung'
+  const cat = ds.categories[0]?.label ?? 'ekonomi'
+  const base = [
+    'Ringkas kondisi keseluruhan',
+    `Bagaimana kondisi ${busiest}?`,
+    `Mana ${cat.toLowerCase()} dalam 1 km dari simpul?`,
+    'Tunjukkan titik di luar jangkauan transit',
+    'Simpul mana yang paling ramai?',
+    'Apa rekomendasi untuk Dinas Perhubungan?',
+  ]
+  if (ds.extraColumns.some((c) => c.key === 'price')) base.push('Berapa harga median di sini?')
+  return base
+}
 
-export const ACCESS_LABELS = ACCESS_META
+export { ACCESS_META as ACCESS_LABELS }

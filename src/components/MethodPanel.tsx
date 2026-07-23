@@ -1,60 +1,102 @@
+import { REGION_LABEL } from '../data/transitNodes'
+import type { DatasetDef } from '../lib/types'
+
 const STEPS = [
   {
     n: '1',
-    title: 'Data mentah',
-    body: 'Community Maps (activity) dari MAPID — 25 titik sampel di Bandung Raya. Kolom apa adanya: title, description, latitude, longitude, medias/images/videos. Tidak ada satu pun kolom kategori.',
+    title: 'Identifikasi data awal',
+    body: 'Empat dataset panitia, skemanya berbeda-beda: Community Maps (teks bebas + media), Menu Go (survei tempat makan), Struk Go (bukti transaksi), Properti Go (listing properti). Dipilih satu yang aktif, tidak digabung.',
   },
   {
     n: '2',
-    title: 'Cleaning & standardisasi',
-    body: 'latitude/longitude datang sebagai string → dikonversi ke number; koordinat Z yang selalu 0 dibuang; baris tanpa koordinat valid atau di luar bbox Indonesia dibuang; duplikat (judul + koordinat sama) dibuang; images/videos dinormalkan jadi array.',
+    title: 'Adapter & standardisasi',
+    body: 'Tiap dataset punya adapter yang menormalkannya jadi satu bentuk `Observation`: lokasi, judul, kategori, foto, plus kolom khas dataset (harga, waktu, alamat). Karena bentuknya seragam, satu mesin analisis melayani keempatnya tanpa percabangan.',
   },
   {
     n: '3',
-    title: 'Pengolahan data tidak terstruktur (AI/NLP)',
-    body: 'Teks judul + deskripsi diklasifikasikan ke 6 tema lewat leksikon berbobot, plus ekstraksi hashtag, deteksi nada laporan (keluhan/netral/apresiasi), dan ekstraksi indikasi harga ("44rb", "Rp25.000"). Ini yang mengubah teks bebas jadi kolom yang bisa difilter dan diagregasi.',
+    title: 'Cleaning',
+    body: 'Konversi tipe (lat/long string → number), validasi koordinat terhadap bbox Indonesia, dedupe pakai ID resmi kalau ada, buang kolom yang kosong seluruhnya, normalisasi nilai kategorikal yang tersimpan sebagai kalimat panjang. Detailnya berbeda per dataset — lihat catatan di bawah.',
   },
   {
     n: '4',
-    title: 'Data pendukung',
-    body: '10 simpul transportasi massal (stasiun KA, terminal bus, stasiun kereta cepat) di koridor Bandung–Padalarang. Di prototipe ini koordinatnya masih diketik manual sebagai perkiraan — versi kompetisi memakai OSM/BIG/KAI dengan sumber dicantumkan.',
+    title: 'Pengolahan teks (AI)',
+    body: 'Hanya Community Maps yang butuh klasifikasi tema, karena tiga dataset lain sudah punya kolom kategori. Untuk semua dataset, teks bebasnya tetap dipindai untuk tag dan indikasi harga.',
   },
   {
     n: '5',
-    title: 'Analisis spasial',
-    body: 'Nearest-neighbour join tiap aktivitas ke simpul terdekat (haversine) — sekaligus membentuk catchment ala Voronoi; klasifikasi keterjangkauan pada ambang 500 m / 1 km / 2 km; buffer geodesik radius layanan untuk visual; deteksi blank spot (>2 km dari simpul mana pun).',
+    title: 'Data pendukung',
+    body: '17 simpul transportasi massal di dua wilayah: Bandung Raya (11) dan koridor KRL Depok (6). Simpul yang dipakai mengikuti wilayah dataset aktif. Koordinatnya masih perkiraan manual.',
   },
   {
     n: '6',
-    title: 'Indexing',
-    body: 'Indeks Denyut Transit per simpul (0–100) = 40% volume berbobot jarak Σ exp(−d/1500) + 30% rata-rata relevansi tema + 30% rata-rata kelengkapan bukti visual. Buffer 1 km kaku sempat dipakai tapi membuat 8 dari 10 simpul bernilai 0 — peluruhan jarak dipilih supaya indeksnya informatif tanpa memalsukan kedekatan.',
+    title: 'Analisis spasial',
+    body: 'Nearest-neighbour join tiap titik ke simpul terdekat (haversine) — sekaligus membentuk catchment ala Voronoi; klasifikasi keterjangkauan pada ambang 500 m / 1 km / 2 km; buffer geodesik radius layanan; deteksi blank spot (>2 km dari simpul mana pun).',
   },
   {
     n: '7',
-    title: 'Insight & rekomendasi',
-    body: 'Angka level kota (rasio walkable, jarak median, rasio keluhan), peringkat simpul, dan rekomendasi bertarget stakeholder yang disusun dari kondisi data — bukan teks statis.',
+    title: 'Indexing',
+    body: 'Indeks Denyut Transit per simpul (0–100) = 40% volume berbobot jarak Σ exp(−d/1500) + 30% rata-rata relevansi kategori + 30% rata-rata kelengkapan bukti visual. Buffer 1 km kaku sempat dipakai tapi membuat sebagian besar simpul bernilai 0 — peluruhan jarak dipilih supaya indeksnya informatif tanpa memalsukan kedekatan.',
   },
   {
     n: '8',
-    title: 'Integrasi WebGIS',
-    body: 'Peta interaktif (zoom, klik objek, layer control, popup) + tabel atribut + grafik + asisten spasial yang mengubah pertanyaan bahasa alami jadi filter peta.',
+    title: 'Insight, rekomendasi, WebGIS',
+    body: 'Angka level kota, peringkat simpul, dan rekomendasi bertarget stakeholder yang disusun dari kondisi data. Semuanya masuk ke peta interaktif + tabel atribut + grafik + asisten spasial yang mengubah pertanyaan bahasa alami jadi filter peta.',
   },
 ]
 
 const CAVEATS = [
-  'Basemap masih CARTO/OSM. Kompetisi mewajibkan MAPID MAPS — sudah disiapkan slot env `VITE_MAPID_STYLE_URL`, tinggal diisi.',
+  'Basemap masih CARTO/OSM. Kompetisi mewajibkan MAPID MAPS — slot env `VITE_MAPID_STYLE_URL` sudah disiapkan, tinggal diisi.',
   'Klasifikasi tema dan asisten AI masih rule-based (deterministik), belum LLM. Kontrak fungsinya sudah dibuat supaya bisa ditukar tanpa mengubah UI.',
-  'Koordinat simpul transit adalah perkiraan manual, bukan data resmi.',
-  'n = 25 titik. Semua angka di panel Insight sah secara perhitungan tapi lemah secara statistik — ini prototipe metode, bukan temuan final.',
-  'Belum ada network analysis berbasis jaringan jalan; jarak yang dipakai masih garis lurus (haversine), jadi cenderung optimistis.',
+  'Koordinat 17 simpul transit adalah perkiraan manual, bukan data resmi.',
+  'Tiga dari empat dataset hanya berisi 15–25 baris. Semua angka sah secara perhitungan tapi lemah secara statistik — ini prototipe metode, bukan temuan final.',
+  'Belum ada network analysis berbasis jaringan jalan; jarak masih garis lurus (haversine), jadi cenderung optimistis.',
+  'Foto belum dianalisis sama sekali, padahal itu aset terbesar keempat dataset ini.',
 ]
 
-export default function MethodPanel() {
+export default function MethodPanel({
+  dataset,
+  notes,
+  dropped,
+}: {
+  dataset: DatasetDef
+  notes: string[]
+  dropped: number
+}) {
   return (
     <div className="panel">
       <div className="panel-head">
         <h2>Metodologi</h2>
       </div>
+
+      <section className="block">
+        <h3>Dataset aktif: {dataset.label}</h3>
+        <dl className="kv">
+          <dt>Sumber</dt>
+          <dd>{dataset.source}</dd>
+          <dt>Wilayah</dt>
+          <dd>{REGION_LABEL[dataset.region]}</dd>
+          <dt>Kategori</dt>
+          <dd>
+            {dataset.categorySource === 'ai'
+              ? 'Hasil klasifikasi AI (tidak ada di data mentah)'
+              : 'Kolom asli data panitia'}
+          </dd>
+          <dt>Baris dibuang</dt>
+          <dd>{dropped}</dd>
+        </dl>
+        <p className="ai-summary">
+          <b>Peran AI di dataset ini:</b> {dataset.aiRole}
+        </p>
+      </section>
+
+      <section className="block">
+        <h3>Catatan cleaning untuk {dataset.label}</h3>
+        <ul className="caveats">
+          {notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      </section>
 
       <section className="block">
         <h3>Alur pengolahan data</h3>
@@ -84,9 +126,9 @@ export default function MethodPanel() {
         <h3>Sumber data</h3>
         <dl className="kv">
           <dt>Data dasar</dt>
-          <dd>Community Maps (activity) — MAPID WebGIS Competition 2026</dd>
+          <dd>Community Maps, Menu Go, Struk Go, Properti Go — MAPID WebGIS Competition 2026</dd>
           <dt>Data pendukung</dt>
-          <dd>Titik simpul transit (perkiraan manual; rencana: OpenStreetMap / BIG)</dd>
+          <dd>Titik simpul transit (perkiraan manual; rencana: OpenStreetMap / BIG / KAI)</dd>
           <dt>Basemap</dt>
           <dd>CARTO + OpenStreetMap (sementara) → MAPID MAPS</dd>
         </dl>

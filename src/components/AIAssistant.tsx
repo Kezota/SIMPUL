@@ -1,12 +1,9 @@
 import { useRef, useState } from 'react'
-import { ask, SUGGESTED_QUESTIONS, type AIResponse } from '../lib/ai'
-import type { Activity, Filters, Insights, NodeStats } from '../lib/types'
+import { ask, suggestedQuestions, type AIContext, type AIResponse } from '../lib/ai'
+import type { Filters } from '../lib/types'
 
 interface Props {
-  activities: Activity[]
-  nodeStats: NodeStats[]
-  insights: Insights
-  filters: Filters
+  ctx: AIContext
   onApply: (patch: Partial<Filters>, focus: AIResponse['focus']) => void
 }
 
@@ -15,21 +12,20 @@ interface Turn {
   r: AIResponse
 }
 
-export default function AIAssistant({
-  activities,
-  nodeStats,
-  insights,
-  onApply,
-}: Props) {
+export default function AIAssistant({ ctx, onApply }: Props) {
   const [input, setInput] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [openTrace, setOpenTrace] = useState<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
+  // Riwayat percakapan direset saat dataset berganti — dilakukan lewat `key`
+  // di App.tsx (komponen di-remount), bukan lewat effect yang memanggil
+  // setState dan memicu render berantai.
+
   const submit = (q: string) => {
     const question = q.trim()
     if (!question) return
-    const r = ask(question, { activities, nodeStats, insights })
+    const r = ask(question, ctx)
     setTurns((t) => [...t, { q: question, r }])
     setInput('')
     onApply(r.filters, r.focus)
@@ -49,6 +45,7 @@ export default function AIAssistant({
         Jawaban di bawah <b>tidak pernah mengarang angka</b> — semuanya ditarik dari
         hasil analisis yang sama dengan yang dipetakan. Tiap jawaban juga mengubah
         filter peta, jadi hasilnya bisa langsung dilihat, bukan cuma dibaca.
+        Sekarang menjawab untuk dataset <b>{ctx.dataset.label}</b>.
       </p>
 
       <div className="ai-log" ref={listRef}>
@@ -56,7 +53,7 @@ export default function AIAssistant({
           <div className="ai-empty">
             <p>Coba salah satu:</p>
             <div className="chips">
-              {SUGGESTED_QUESTIONS.map((s) => (
+              {suggestedQuestions(ctx.dataset, ctx.nodeStats).map((s) => (
                 <button key={s} type="button" className="chip suggest" onClick={() => submit(s)}>
                   {s}
                 </button>

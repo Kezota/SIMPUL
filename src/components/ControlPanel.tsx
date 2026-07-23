@@ -1,29 +1,31 @@
 import { ACCESS_META } from '../lib/analysis'
-import { THEMES } from '../lib/enrich'
 import { formatDistance } from '../lib/geo'
 import { BASEMAP_NOTE, usingMapidBasemap } from '../lib/basemap'
-import type { AccessClass, Activity, Filters, NodeStats, ThemeId } from '../lib/types'
+import { REGION_LABEL } from '../data/transitNodes'
+import type { AccessClass, DatasetDef, Filters, NodeStats, Observation } from '../lib/types'
 import type { LayerVisibility } from './MapView'
 
 interface Props {
+  dataset: DatasetDef
   filters: Filters
   setFilters: (f: Filters) => void
   layers: LayerVisibility
   setLayers: (l: LayerVisibility) => void
   nodeStats: NodeStats[]
-  filtered: Activity[]
+  filtered: Observation[]
   total: number
 }
 
 const LAYER_META: { key: keyof LayerVisibility; label: string; desc: string }[] = [
-  { key: 'activities', label: 'Aktivitas warga', desc: 'Titik Community Maps, diwarnai per tema' },
+  { key: 'points', label: 'Titik data', desc: 'Diwarnai per kategori dataset aktif' },
   { key: 'heatmap', label: 'Kepadatan (heatmap)', desc: 'Dibobot relevansi transit; hilang saat zoom dalam' },
-  { key: 'nodes', label: 'Simpul transit', desc: 'Stasiun & terminal + jumlah laporan' },
+  { key: 'nodes', label: 'Simpul transit', desc: 'Stasiun & terminal + jumlah titik di catchment' },
   { key: 'radius', label: 'Radius layanan 1 km', desc: 'Buffer catchment pejalan kaki' },
   { key: 'links', label: 'Garis ke simpul terdekat', desc: 'Merah = di luar 2 km' },
 ]
 
 export default function ControlPanel({
+  dataset,
   filters,
   setFilters,
   layers,
@@ -32,12 +34,12 @@ export default function ControlPanel({
   filtered,
   total,
 }: Props) {
-  const toggleTheme = (t: ThemeId) =>
+  const toggleCategory = (id: string) =>
     setFilters({
       ...filters,
-      themes: filters.themes.includes(t)
-        ? filters.themes.filter((x) => x !== t)
-        : [...filters.themes, t],
+      categories: filters.categories.includes(id)
+        ? filters.categories.filter((x) => x !== id)
+        : [...filters.categories, id],
     })
 
   const toggleAccess = (a: AccessClass) =>
@@ -50,19 +52,19 @@ export default function ControlPanel({
 
   const reset = () =>
     setFilters({
-      themes: [],
+      categories: [],
       access: [],
-      onlyComplaints: false,
-      maxDistanceM: 20000,
+      onlyHighlighted: false,
+      maxDistanceM: 40000,
       search: '',
       nodeId: null,
     })
 
   const dirty =
-    filters.themes.length > 0 ||
+    filters.categories.length > 0 ||
     filters.access.length > 0 ||
-    filters.onlyComplaints ||
-    filters.maxDistanceM < 20000 ||
+    filters.onlyHighlighted ||
+    filters.maxDistanceM < 40000 ||
     filters.search !== '' ||
     filters.nodeId !== null
 
@@ -110,26 +112,32 @@ export default function ControlPanel({
         <input
           className="search"
           type="search"
-          placeholder="Cari judul, deskripsi, atau tag…"
+          placeholder="Cari judul, alamat, atau tag…"
           value={filters.search}
           onChange={(e) => setFilters({ ...filters, search: e.target.value })}
         />
 
-        <p className="field-label">Tema (hasil klasifikasi AI)</p>
+        <p className="field-label">
+          Kategori{' '}
+          <span className={`src-tag src-${dataset.categorySource}`}>
+            {dataset.categorySource === 'ai' ? 'hasil klasifikasi AI' : 'kolom asli data'}
+          </span>
+        </p>
         <div className="chips">
-          {THEMES.map((t) => (
+          {dataset.categories.map((c) => (
             <button
-              key={t.id}
+              key={c.id}
               type="button"
-              className={`chip${filters.themes.includes(t.id) ? ' on' : ''}`}
+              title={c.label}
+              className={`chip${filters.categories.includes(c.id) ? ' on' : ''}`}
               style={
-                filters.themes.includes(t.id)
-                  ? { background: t.color, borderColor: t.color, color: '#fff' }
-                  : { borderColor: t.color, color: t.color }
+                filters.categories.includes(c.id)
+                  ? { background: c.color, borderColor: c.color, color: '#fff' }
+                  : { borderColor: c.color, color: c.color }
               }
-              onClick={() => toggleTheme(t.id)}
+              onClick={() => toggleCategory(c.id)}
             >
-              {t.short}
+              {c.label.length > 22 ? `${c.label.slice(0, 20)}…` : c.label}
             </button>
           ))}
         </div>
@@ -161,13 +169,15 @@ export default function ControlPanel({
           className="slider"
           type="range"
           min={200}
-          max={20000}
-          step={100}
+          max={40000}
+          step={200}
           value={filters.maxDistanceM}
           onChange={(e) => setFilters({ ...filters, maxDistanceM: Number(e.target.value) })}
         />
 
-        <p className="field-label">Simpul transit terdekat</p>
+        <p className="field-label">
+          Simpul transit terdekat · {REGION_LABEL[dataset.region]}
+        </p>
         <select
           className="select"
           value={filters.nodeId ?? ''}
@@ -181,13 +191,13 @@ export default function ControlPanel({
           ))}
         </select>
 
-        <label className="switch">
+        <label className="switch" title={dataset.highlight.hint}>
           <input
             type="checkbox"
-            checked={filters.onlyComplaints}
-            onChange={(e) => setFilters({ ...filters, onlyComplaints: e.target.checked })}
+            checked={filters.onlyHighlighted}
+            onChange={(e) => setFilters({ ...filters, onlyHighlighted: e.target.checked })}
           />
-          <span>Hanya laporan bernada keluhan</span>
+          <span>Hanya: {dataset.highlight.label}</span>
         </label>
       </section>
     </div>
