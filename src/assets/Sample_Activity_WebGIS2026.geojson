@@ -1,0 +1,828 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5594142463214,
+          -6.9679774088170126,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Macet cicukang",
+        "description": "Telat dikit gpp y",
+        "latitude": "-6.9679774088170126",
+        "longitude": "107.5594142463214",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5c7e0e80-7375-4f2b-80de-d4bf33ef89a4_1780968994582.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5c7e0e80-7375-4f2b-80de-d4bf33ef89a4_1780968994582.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.50824556369318,
+          -6.994012311120087,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Sawah Menghijau 🌾",
+        "description": "Setiap weekend saya sepedahan lewat sini untuk melepas lelah otak dalam berfikir dan mencari inspirasi dari dunia nyata #alam 🌾",
+        "latitude": "-6.994012311120087",
+        "longitude": "107.50824556369318",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2b1cc5dc-23fd-4246-8cca-ce779b40b29a_JU7A62qmWX.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e7637b66-5a20-4730-96ba-f2160b0972bc_1780798855593.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/012a43b0-db92-4319-b14b-b6aab557f81b_1780798778125.mp4"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2b1cc5dc-23fd-4246-8cca-ce779b40b29a_JU7A62qmWX.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e7637b66-5a20-4730-96ba-f2160b0972bc_1780798855593.jpg"
+        ],
+        "videos": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/012a43b0-db92-4319-b14b-b6aab557f81b_1780798778125.mp4"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.56258134575548,
+          -6.963147686002662,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Inflasi Harga Sayur 📈🌶️",
+        "description": "Pagi ini saya ke pasar dan mendapati Bawang putih terpantau naik dari 38rb jadi 44rb, lainnya akan saya update segera di pin ini #hargasayur",
+        "latitude": "-6.963147686002662",
+        "longitude": "107.56258134575548",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ed63d264-0757-4307-9d83-d6b8939333c4_x5QXdB6HaZ.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/26915071-f819-4c13-a405-15221d227def_1780792116364.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6d6ff9e9-0323-4c9b-8800-406d9369c869_1780792116400.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/38a73b06-5d2f-4a26-a3de-c0df0d687c28_1780792116424.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ed63d264-0757-4307-9d83-d6b8939333c4_x5QXdB6HaZ.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/26915071-f819-4c13-a405-15221d227def_1780792116364.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6d6ff9e9-0323-4c9b-8800-406d9369c869_1780792116400.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/38a73b06-5d2f-4a26-a3de-c0df0d687c28_1780792116424.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.54570672987012,
+          -6.97119279892982,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Bakar Sampah 👎",
+        "description": "Niat olahraga jalan kaki menelusuri sungai citarum, tapi malah banyak yang bakar sampah",
+        "latitude": "-6.97119279892982",
+        "longitude": "107.54570672987012",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d385be7b-675c-4485-b8a7-a89e3cf0b3de_R76h9VJ5oY.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/462b9424-ad78-4312-b938-81791fc21904_1780719422524.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0147a6db-68db-4fcb-8a53-230580ae9673_1780719422821.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/acaeca49-7f00-48ed-8492-adf0749f59be_1780719423025.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d385be7b-675c-4485-b8a7-a89e3cf0b3de_R76h9VJ5oY.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/462b9424-ad78-4312-b938-81791fc21904_1780719422524.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0147a6db-68db-4fcb-8a53-230580ae9673_1780719422821.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/acaeca49-7f00-48ed-8492-adf0749f59be_1780719423025.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5192663356965,
+          -6.885265356956939,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Ayo Naik Bus 🚍🚏",
+        "description": "Buat kalian yang mau ke Jabodetabek hingga merak dari Bandung dengan harga ekonomis, cobain naik bus dari Pool KM 125 Primajasa. Disini kamu bisa naik bus Primajasa atau MGI dengan harga dibawah Rp. 100.000 🫰🏼. Contoh Bandung-Jakarta (Cililitan) aja cuma Rp. 85.000 Kelas Executive ya 😎. Kalian juga bisa naik dari Terminal Leuwi Panjang kalo lebih deket. Diantara travel, kereta, dan woosh, ini adalah pilihan transportasi paling murah dah nyaman menurut saya. Karena apa⁉️suspensinga Air Suspension guys 🤣#ayonaikbus",
+        "latitude": "-6.885265356956939",
+        "longitude": "107.5192663356965",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/974f99c9-c675-4c90-8d41-4922896f45af_BQ6y7ThzoU.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f5c5560d-25fc-4f06-97db-af36a4a53051_1780444897005.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9d5a1073-a805-4dff-8dfb-0cf1cf71c6d6_1780444897284.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8de84962-651d-4e06-aff2-415fee95013a_1780444897463.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/545a6062-e718-48f9-92fe-18f44a74a9a8_1780444897653.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2a6a5892-b682-43c6-b276-c251009e02c3_1780444897895.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e916ac12-1a6e-4365-9807-865cd58f3857_1780444898154.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e2309ccd-5561-4cf5-b9a8-701166c998c9_1780444898336.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/a5cc701a-12a4-47b0-9c7f-f530684dea72_1780444898536.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/974f99c9-c675-4c90-8d41-4922896f45af_BQ6y7ThzoU.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f5c5560d-25fc-4f06-97db-af36a4a53051_1780444897005.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9d5a1073-a805-4dff-8dfb-0cf1cf71c6d6_1780444897284.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8de84962-651d-4e06-aff2-415fee95013a_1780444897463.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/545a6062-e718-48f9-92fe-18f44a74a9a8_1780444897653.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2a6a5892-b682-43c6-b276-c251009e02c3_1780444897895.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e916ac12-1a6e-4365-9807-865cd58f3857_1780444898154.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e2309ccd-5561-4cf5-b9a8-701166c998c9_1780444898336.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/a5cc701a-12a4-47b0-9c7f-f530684dea72_1780444898536.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.6061841,
+          -6.9442793,
+          0
+        ]
+      },
+      "properties": {
+        "title": "nasi segala warna aya",
+        "description": "🍚",
+        "latitude": "-6.9442793",
+        "longitude": "107.6061841",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/c793daf3-2db4-415b-87fc-a71be135c6f3_1xTV8QCFjx.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0c31a08d-807a-45ff-a38a-50c8464ad69e_1780288854052.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/c793daf3-2db4-415b-87fc-a71be135c6f3_1xTV8QCFjx.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0c31a08d-807a-45ff-a38a-50c8464ad69e_1780288854052.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.60919196770595,
+          -6.859695841641738,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Shelter Kucing Bandung 🐱🐈🐈‍⬛",
+        "description": "Pernah kepikiran ga sih, klo liat kucing kasian di jalan apakah ada tempat untuk merawatnya⁉️. Masalahnya memang ga semua orang suka kucing dan bisa merawat kucing, tapi ada rasa kasihan dan ingin membantu. Nah ini tempatnya, namanya Shelter Kucing Bandung. Pemiliknya adalah Cindy Sesiliana, dia tergerak untuk bikin rumah aman buat kucing & anjing yang terlantar dan alhamdulillahnya banyak ternyata yang peduli juga lewat donasi. Kalian bisa donasi ke BCA 6395750805 , selain itu kalian juga bisa liat2 kucing disini yang mungkin akan kalian adopsi. Sebagai mahluk hidup, kewajiban kita untuk salinh menyayangi ciptaan tuhan #shelterkucing",
+        "latitude": "-6.859695841641738",
+        "longitude": "107.60919196770595",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d4a40267-5b97-4e9d-ac4c-eb3e0a15047a_DvDag70uri.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/721e3935-6a42-47a9-a02e-edfd5fb85fb0_1780211971917.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fefc8066-7dc2-4340-9fa2-6bffc1b2a2ab_1780211972101.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/a1858a1b-4cda-4145-9a0f-e3ce9a997767_1780211972269.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/066f626d-f51e-4d39-9d3d-b9724c97362a_1780211972411.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/70b81a4e-89ea-4da6-b957-352567be2f54_1780211972576.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fdb248ee-9279-461b-a558-196dabb518a9_1780211972743.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/dd977e8d-8e61-4e46-84ac-a0f9e36617b1_1780213569928.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d4a40267-5b97-4e9d-ac4c-eb3e0a15047a_DvDag70uri.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/721e3935-6a42-47a9-a02e-edfd5fb85fb0_1780211971917.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fefc8066-7dc2-4340-9fa2-6bffc1b2a2ab_1780211972101.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/a1858a1b-4cda-4145-9a0f-e3ce9a997767_1780211972269.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/066f626d-f51e-4d39-9d3d-b9724c97362a_1780211972411.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/70b81a4e-89ea-4da6-b957-352567be2f54_1780211972576.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fdb248ee-9279-461b-a558-196dabb518a9_1780211972743.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/dd977e8d-8e61-4e46-84ac-a0f9e36617b1_1780213569928.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.61373435986629,
+          -6.90248415959968,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Special Soto Boyolali Murah+Mantab 🍲",
+        "description": "SSB ini memang ga cuma di Bandung aja. Tapi makan disini rasanya happy bgt 😆, selain rasanya murah makannya aman bgt. Saya pesen soto 3, topping sate paru, sate ayam, sate cingur, tahu, tempe, perkeder cuma 98.000 #soto",
+        "latitude": "-6.90248415959968",
+        "longitude": "107.61373435986629",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6ab611b9-54ad-4487-94fe-934ebedd0fa0_1780195391555.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/37ef53a1-e4b8-475e-b02f-ff3cbe55733b_1780195391713.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/3fc80e38-4aac-4629-8a46-7271f9af91c8_1780195391827.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fabd2a93-e12f-4315-8111-249115dad74a_1780195391925.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/4e5c2d1c-7351-43e2-b595-baae9b4b3fdd_1780195392026.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/62010cda-8c13-41d4-81c1-cd561ba53c31_1780195392160.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6ab611b9-54ad-4487-94fe-934ebedd0fa0_1780195391555.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/37ef53a1-e4b8-475e-b02f-ff3cbe55733b_1780195391713.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/3fc80e38-4aac-4629-8a46-7271f9af91c8_1780195391827.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fabd2a93-e12f-4315-8111-249115dad74a_1780195391925.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/4e5c2d1c-7351-43e2-b595-baae9b4b3fdd_1780195392026.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/62010cda-8c13-41d4-81c1-cd561ba53c31_1780195392160.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.57974863779104,
+          -6.917195502086363,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Pameran Franchise IFBC Bandung",
+        "description": "Ada event menarik nih di Bandung yang berlanjut ke kota2 besar lainnya. Pameran franchise. Seru banget 🎤🤑💰",
+        "latitude": "-6.917195502086363",
+        "longitude": "107.57974863779104",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/346ba438-e724-4c02-89c2-916bd67c2b7a_1780143667768.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8236ca0f-b563-4842-8316-74400f394a54_1780143302906.mp4",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/17d40b8e-b653-43c6-bc94-444a4fa36282_1780143667811.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9550526e-0368-47f1-b335-ece511eb3a5b_1780143667833.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2726389b-cef0-47e0-8bda-eec8dbc75bff_1780143667852.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/346ba438-e724-4c02-89c2-916bd67c2b7a_1780143667768.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/17d40b8e-b653-43c6-bc94-444a4fa36282_1780143667811.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9550526e-0368-47f1-b335-ece511eb3a5b_1780143667833.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2726389b-cef0-47e0-8bda-eec8dbc75bff_1780143667852.jpg"
+        ],
+        "videos": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8236ca0f-b563-4842-8316-74400f394a54_1780143302906.mp4"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.6133321,
+          -6.8981268,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Sinar Warisan",
+        "description": "Sop Kornet",
+        "latitude": "-6.8981268",
+        "longitude": "107.6133321",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/31f19f8a-ba9a-4852-895f-8bb2659ca74b_ddiqaGAE0n.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ce7843e6-6cc1-4fd8-980d-13ddf9418d11_1780057816399.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/31f19f8a-ba9a-4852-895f-8bb2659ca74b_ddiqaGAE0n.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ce7843e6-6cc1-4fd8-980d-13ddf9418d11_1780057816399.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.42799065104462,
+          -6.8631287830815255,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Jalur Hiking KBP 🏁🥾⛰️",
+        "description": "Alhamdulillah menyelesaikan jalur hiking KBP. Lumayan rutenya sekitar 3Km. Tapi yang menarik disini rutenya betul2 seperti di maintain. Cocok buat keluarga dengan anak2 usia diatas 5th nan. #Hiking #MAPYOURADHA",
+        "latitude": "-6.8631287830815255",
+        "longitude": "107.42799065104462",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/c210eff7-a2c0-48b2-8008-dbb502417d61_1780019371543.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/83564bbf-2f8e-40d4-9da4-93011211049b_1780019371710.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0db9d595-dfc4-4144-aee2-a2195a67c330_1780019371827.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6a49f5b2-14ed-42da-b124-c624e8623cec_1780019371951.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b6e4620c-6d69-4c21-85a6-9ba9f4c8c2c6_1780019372075.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/a1eb9385-da90-47fd-b096-2c4599ccc255_1780019372193.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/629421bb-151e-4aea-9dc6-cd032b73adec_1780019372318.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/7cfd17ad-984b-474c-9ea5-05978471d31c_1780019372452.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/44d37387-e6c3-470a-aac3-db887b9fc678_1780019372581.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/00f0f8ef-a169-4009-a227-877704fd49ba_1780019372708.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/08ce156f-310b-49cf-b03d-919498915fde_1780019256374.mp4",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/22ff7419-c8d6-45b3-94bf-694a72f6da43_1780019281953.mp4"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/c210eff7-a2c0-48b2-8008-dbb502417d61_1780019371543.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/83564bbf-2f8e-40d4-9da4-93011211049b_1780019371710.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0db9d595-dfc4-4144-aee2-a2195a67c330_1780019371827.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6a49f5b2-14ed-42da-b124-c624e8623cec_1780019371951.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b6e4620c-6d69-4c21-85a6-9ba9f4c8c2c6_1780019372075.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/a1eb9385-da90-47fd-b096-2c4599ccc255_1780019372193.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/629421bb-151e-4aea-9dc6-cd032b73adec_1780019372318.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/7cfd17ad-984b-474c-9ea5-05978471d31c_1780019372452.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/44d37387-e6c3-470a-aac3-db887b9fc678_1780019372581.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/00f0f8ef-a169-4009-a227-877704fd49ba_1780019372708.jpg"
+        ],
+        "videos": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/08ce156f-310b-49cf-b03d-919498915fde_1780019256374.mp4",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/22ff7419-c8d6-45b3-94bf-694a72f6da43_1780019281953.mp4"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.61635460990284,
+          -6.908521287892739,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Olahraga dulu",
+        "description": "Bikin track tamiya",
+        "latitude": "-6.908521287892739",
+        "longitude": "107.61635460990284",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/808237fa-8b54-4758-a621-852e0e8f61df_1b20AQyyov.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/38adbe37-9bfc-44e0-b91e-47677dcaf817_20260529Outdoor_walk_20260529081029.mp4",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fec1e214-e16a-46e5-b16c-8639992512c3_1780017532614.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/808237fa-8b54-4758-a621-852e0e8f61df_1b20AQyyov.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fec1e214-e16a-46e5-b16c-8639992512c3_1780017532614.jpg"
+        ],
+        "videos": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/38adbe37-9bfc-44e0-b91e-47677dcaf817_20260529Outdoor_walk_20260529081029.mp4"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.52906890572122,
+          -7.018916422606901,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Kuliner Fancy Kabupaten 🫰🏼",
+        "description": "Buat yang suka sushi-sushi seger mentah, ada nih di kabupaten Bandung keluar tol SOROJA. Sebenernya ngga cuma Yomart ini aja, sepanjang keluar tol SOROJA ini banyak sekali makanan2nan legendaris Bandung. Seperti Sate Hj Haris, WN Laksana, Ayam Bakakak Sampurasun, dan tentunya saingan utamanya Yomart ini yaitu Indomaret Fresh #MapYourAdha",
+        "latitude": "-7.018916422606901",
+        "longitude": "107.52906890572122",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/744a9694-69a9-4387-b6e6-f26f63b24ec4_1779947650477.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/4faa4f22-fb04-496a-abad-d366e30ae04c_1779947650617.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/37c076bb-a4bf-4578-9756-b171ff7aaf9e_1779947650768.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/11764188-a90e-41a3-a0cd-7503dde3b1db_1779947650914.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d166822a-e976-4e51-8f0f-7d099c97c5db_1779947651063.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6d33ac24-9d82-43ec-ae7d-0f4557ba6659_1779947651203.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/eef25305-34e2-4d52-ab20-51d4987a0765_1779947651351.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fd280ad5-0417-41b4-8edc-3f80c16063a6_1779947651508.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e55b7dfb-692d-4a27-a80c-169a32cf6dad_1779947651664.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/744a9694-69a9-4387-b6e6-f26f63b24ec4_1779947650477.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/4faa4f22-fb04-496a-abad-d366e30ae04c_1779947650617.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/37c076bb-a4bf-4578-9756-b171ff7aaf9e_1779947650768.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/11764188-a90e-41a3-a0cd-7503dde3b1db_1779947650914.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d166822a-e976-4e51-8f0f-7d099c97c5db_1779947651063.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6d33ac24-9d82-43ec-ae7d-0f4557ba6659_1779947651203.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/eef25305-34e2-4d52-ab20-51d4987a0765_1779947651351.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/fd280ad5-0417-41b4-8edc-3f80c16063a6_1779947651508.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e55b7dfb-692d-4a27-a80c-169a32cf6dad_1779947651664.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5940109,
+          -6.9762491,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Qurban Day",
+        "description": "Cekrak cekrek hewan untuk Qurban. \"Sungguh, Kami telah memberimu (Muhammad) nikmat yang banyak. Maka laksanakanlah salat karena Tuhanmu, dan berkurbanlah (sebagai ibadah dan mendekatkan diri kepada Allah). Sungguh, orang-orang yang membencimu dialah yang terputus (dari rahmat Allah).\" #MAPYOURADHA",
+        "latitude": "-6.9762491",
+        "longitude": "107.5940109",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/62c4a268-8091-4958-b4eb-aa9c9e3cace9_nUX1ggm8pc.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9e6ff49e-eeba-40c6-93fa-f6a61ec21a06_1779844676635.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/02f0afe7-32a1-45a1-a267-29ec3945660b_1779844677420.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/573d862e-9218-4695-ae3f-8d3491c7cf8c_1779844678284.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b811b75b-9ff3-4d9c-b14b-24bb686ce0e3_1779844679063.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b2f639e4-0f3f-4cc0-8341-1ac6999024e7_1779844679760.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f844aa48-bcb3-4fae-90a1-74c4c2ad5815_1779844680688.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f9e225e6-7cd7-4d91-ba10-92c80594eaf9_1779844681305.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6d75cb96-9472-4744-8e5c-57123590cb56_20260527_080233.mp4",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9faff357-6f69-49cb-ae8b-92f3975a52ba_20260527_080256.mp4"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/62c4a268-8091-4958-b4eb-aa9c9e3cace9_nUX1ggm8pc.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9e6ff49e-eeba-40c6-93fa-f6a61ec21a06_1779844676635.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/02f0afe7-32a1-45a1-a267-29ec3945660b_1779844677420.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/573d862e-9218-4695-ae3f-8d3491c7cf8c_1779844678284.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b811b75b-9ff3-4d9c-b14b-24bb686ce0e3_1779844679063.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b2f639e4-0f3f-4cc0-8341-1ac6999024e7_1779844679760.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f844aa48-bcb3-4fae-90a1-74c4c2ad5815_1779844680688.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f9e225e6-7cd7-4d91-ba10-92c80594eaf9_1779844681305.jpg"
+        ],
+        "videos": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6d75cb96-9472-4744-8e5c-57123590cb56_20260527_080233.mp4",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9faff357-6f69-49cb-ae8b-92f3975a52ba_20260527_080256.mp4"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.57429225890684,
+          -6.918586678818912,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Bobotoh PERSIB Convoy ⚽️👀",
+        "description": "Bisa dipastikan sore ini Bandung akan menjadi lautan Biru 🔵Karena Bobotoh PERSIB akan merayakan kemenangan Hattrick nya. Stay safe ya semuanya yang punya keperluan di kota Bandung. sebisa mungkin menghindari jalan protokol atau arteri. 🫰🏼#PERSIB",
+        "latitude": "-6.918586678818912",
+        "longitude": "107.57429225890684",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/a47872c0-e8be-4031-948b-843b8473a937_TvezJEptfm.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/3397ff30-0275-4d61-921a-191fedf91347_1779581711305.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b386e81b-df9c-4c1f-8927-ee5ccbeeccb2_1779581711490.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b3462b0c-7245-415d-90a5-620bfb50f3e9_1779581711640.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6c4ba1d1-c982-49f6-8df0-9ea63d320e85_1779581711787.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/69c8d639-404f-459d-9a9e-4515c0f7a256_1779581711930.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/a47872c0-e8be-4031-948b-843b8473a937_TvezJEptfm.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/3397ff30-0275-4d61-921a-191fedf91347_1779581711305.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b386e81b-df9c-4c1f-8927-ee5ccbeeccb2_1779581711490.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b3462b0c-7245-415d-90a5-620bfb50f3e9_1779581711640.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/6c4ba1d1-c982-49f6-8df0-9ea63d320e85_1779581711787.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/69c8d639-404f-459d-9a9e-4515c0f7a256_1779581711930.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.61257934224471,
+          -6.819385628871515,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Modern Market Lembang 🍆🌽🧅🫑",
+        "description": "Ada sayuran apa aja ya di modern market lembang😁 Harganya murah2ga ya⁉️#pasarmodern",
+        "latitude": "-6.819385628871515",
+        "longitude": "107.61257934224471",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e0fbdf92-59bd-4b76-a80a-12be51bb190c_McY8r6uoRU.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ad716c29-6d72-42fb-b209-d1924cc30517_1779525501737.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8459b710-e741-4dcb-85c4-d1e05c00b445_1779525501929.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/871abef2-a235-452f-9cb9-a6fdacb3fa0b_1779525502079.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/990a989f-3647-44aa-8a42-8cb01d6a7814_1779525502231.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/4518c8b2-b633-41a2-92cd-47f22fc1342c_1779525502371.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/3b278c3d-c79b-47d2-8044-ad42cc1a6766_1779525502519.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/69ae87f6-7a7d-4c34-b093-9bb73afe43cf_1779526021436.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e0fbdf92-59bd-4b76-a80a-12be51bb190c_McY8r6uoRU.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ad716c29-6d72-42fb-b209-d1924cc30517_1779525501737.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8459b710-e741-4dcb-85c4-d1e05c00b445_1779525501929.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/871abef2-a235-452f-9cb9-a6fdacb3fa0b_1779525502079.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/990a989f-3647-44aa-8a42-8cb01d6a7814_1779525502231.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/4518c8b2-b633-41a2-92cd-47f22fc1342c_1779525502371.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/3b278c3d-c79b-47d2-8044-ad42cc1a6766_1779525502519.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/69ae87f6-7a7d-4c34-b093-9bb73afe43cf_1779526021436.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.59788033318932,
+          -6.908907586382469,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Seminar Work Abroad by Ruang Guru",
+        "description": "info session persiapan dan langkah langkah ke Jepang, Jerman, maupun Timur Tengah/eropa timur. #workabroad #webinar",
+        "latitude": "-6.908907586382469",
+        "longitude": "107.59788033318932",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/aae8a139-f8e6-4fec-b56f-86b62ece09f2_LST53J1u2v.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2e521ed7-3c46-458e-a3e6-17caf5d8866f_1778994531965.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b8ba0bb8-fac9-4377-b285-da9ae176b6b0_1778994532421.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/99b5c62b-6d4d-43c5-8d86-288ec009862f_1778994532844.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8f86f74f-27a2-4b6f-9c9d-1fedbceafc1d_1778994533276.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/aae8a139-f8e6-4fec-b56f-86b62ece09f2_LST53J1u2v.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2e521ed7-3c46-458e-a3e6-17caf5d8866f_1778994531965.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/b8ba0bb8-fac9-4377-b285-da9ae176b6b0_1778994532421.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/99b5c62b-6d4d-43c5-8d86-288ec009862f_1778994532844.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8f86f74f-27a2-4b6f-9c9d-1fedbceafc1d_1778994533276.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.55548376454595,
+          -6.963074431626737,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Donat Ketan TKI",
+        "description": "Paling cocok pakai kopi ☕️",
+        "latitude": "-6.963074431626737",
+        "longitude": "107.55548376454595",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/24c38312-c858-48e4-b64f-f8f8a69ec5a5_GWIqg4TyMK.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/780c2613-f724-4edb-a6fc-d26f800c9c1d_1778294208323.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/24c38312-c858-48e4-b64f-f8f8a69ec5a5_GWIqg4TyMK.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/780c2613-f724-4edb-a6fc-d26f800c9c1d_1778294208323.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.56266067872151,
+          -6.963107402771525,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Aktivitas Pasar 🛒",
+        "description": "Pasar adalah tempat terjadinya jual beli + tawar menawar, itulah yang diajarkan di sekolah. Disinilah aktivitas perdagangan terjadi dalam memenuhi kebutuhan pokok kehidupan. Segala jenis bahan pokok dari hewani, hayati, hingga olahan ada disini. Suasana passr segar TKI hari ini cukup rame dan merah 😁. #colorhunt #merah",
+        "latitude": "-6.963107402771525",
+        "longitude": "107.56266067872151",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/45801d5a-4f2e-4dd1-a1a7-06f45b4abffe_1778291053014.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/931b14b5-6136-46bb-bfac-f73fe2d902cd_1778291053197.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f398346b-abd8-4e12-b670-c5378564e272_1778291053336.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5bc99a64-f551-413f-9c56-0896e5830838_1778291053460.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/61ece6df-9ac5-4d0f-b595-3de9c0fe3bbc_1778291053589.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/bda739ab-a942-4690-b702-8302977e0d54_1778291053728.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/33bd1309-56b0-4c82-8dfe-cdbd1a31f1c1_1778291053868.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/45801d5a-4f2e-4dd1-a1a7-06f45b4abffe_1778291053014.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/931b14b5-6136-46bb-bfac-f73fe2d902cd_1778291053197.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f398346b-abd8-4e12-b670-c5378564e272_1778291053336.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5bc99a64-f551-413f-9c56-0896e5830838_1778291053460.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/61ece6df-9ac5-4d0f-b595-3de9c0fe3bbc_1778291053589.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/bda739ab-a942-4690-b702-8302977e0d54_1778291053728.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/33bd1309-56b0-4c82-8dfe-cdbd1a31f1c1_1778291053868.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5269398,
+          -7.0190327,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Baca Buku Ngantri di Perpustakaan",
+        "description": "📒📖",
+        "latitude": "-7.0190327",
+        "longitude": "107.5269398",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/7e4288d4-09c0-4b7a-8d81-743ba734ea65_z4wV88Vwty.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ad64fa42-f9cd-4a89-af24-129f672b40fc_1778289022337.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/7e4288d4-09c0-4b7a-8d81-743ba734ea65_z4wV88Vwty.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ad64fa42-f9cd-4a89-af24-129f672b40fc_1778289022337.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5511411712942,
+          -6.973908915372306,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Jual Printer UV Bekas kondisi 😍",
+        "description": "Dijual printer UV untuk buka bisnis cetak di media keras kaya tumbler, pulpen, atau kayu. Kebetulan saya lebih fokus ke DTF akhirnya, jadi ini dijual saja. Harga nego 19Jt, minat hubungi +62 812 8902 1778. Klo minat bisa cek langsung disini.",
+        "latitude": "-6.973908915372306",
+        "longitude": "107.5511411712942",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0232a978-a4b3-4521-9590-06a8e3eff748_LCB2iGDG0a.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d732a169-a8ea-417c-9458-9ef22ce0ef28_1778035336300.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e2d4bf69-ce2b-442d-a22f-42175b0a605d_1778035336342.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0232a978-a4b3-4521-9590-06a8e3eff748_LCB2iGDG0a.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d732a169-a8ea-417c-9458-9ef22ce0ef28_1778035336300.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e2d4bf69-ce2b-442d-a22f-42175b0a605d_1778035336342.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.548524,
+          -6.8481754,
+          0
+        ]
+      },
+      "properties": {
+        "title": "menikmati hari libur 😊",
+        "description": "baru pertama kali explore cimahi. ada kafe yang koleksi bukunya bagus-bagus dan aku menemukan buku quraish shihab cetakan lama di sini:). makanan dan minumannya affordable. wajib coba juga pizzanya!😊😊😊",
+        "latitude": "-6.8481754",
+        "longitude": "107.548524",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/52db9f3c-20d4-47dd-a549-dda0ef8eae05_jBHiyD4OCn.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d92f06c5-b1d9-4474-afd3-d8c2ee287e1d_1777634841526.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0eda5570-bebe-4663-8289-29aad6129805_1777634842090.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/23c9ebba-eefb-4589-9a90-e95607e9de7c_1777634842622.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f2079190-9499-439f-8990-cb7b957e79b0_1777634843130.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/56ecc527-b96b-4884-9ca0-9218b0afa12f_1777634843679.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2246b479-1455-43f1-9519-189fb29f1630_1777634844244.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ed238f05-4b26-4642-a09d-e910c833c402_1777634844777.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/52db9f3c-20d4-47dd-a549-dda0ef8eae05_jBHiyD4OCn.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d92f06c5-b1d9-4474-afd3-d8c2ee287e1d_1777634841526.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0eda5570-bebe-4663-8289-29aad6129805_1777634842090.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/23c9ebba-eefb-4589-9a90-e95607e9de7c_1777634842622.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/f2079190-9499-439f-8990-cb7b957e79b0_1777634843130.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/56ecc527-b96b-4884-9ca0-9218b0afa12f_1777634843679.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2246b479-1455-43f1-9519-189fb29f1630_1777634844244.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/ed238f05-4b26-4642-a09d-e910c833c402_1777634844777.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.55589612759265,
+          -6.979555902379588,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Sudah 2x Gubernur Datang, Jalan Masih Rusak 📣",
+        "description": "sudah dua kali gubernur datang ke sini kata bapaknya tapi jalan masih belum juga dibetulin. nah ternyata setelah ditelusuri ini adalah lokasi TPA tempat pembuangan sampah akhir untuk kabupaten Bandung. Terpantau juga ada yang bisnis cuci mobil termasuk pengelulan sampah jadi mengakibatkan becek dan bau.  untuk warga sekitar memang sudah tidak nyaman dan warga pun bertanya, kapan jalannya akan dibetulin??. padahal di sini joging track yang sangat menarik karena berada langsung di samping sungai Citarum dan kalau kita bisa juga lokasi ini lokasi berkembangnya UMKM di samping sungai Citarum dengan target market adalah warga kopo dan sekitarnya 😁. #JalanRusak",
+        "latitude": "-6.979555902379588",
+        "longitude": "107.55589612759265",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d5978fa4-4f71-4765-bec0-ec0d11e05ccc_AccsGWTo3o.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e7fb1f95-56f7-4e9f-a17a-712497546a1a_1777509076078.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/3598ad31-8383-4e77-bfb9-12ac10691d9f_000AF887-4D0C-4467-A649-563179C09A84_L0_001_1777509039.239466_IMG_0757.MOV",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/4c99b15d-43e4-4bb5-bbaf-4a868979d902_CD9F4525-57A9-4856-8E7E-0FF519EEC48A_L0_001_1777509063.514805_IMG_0758.MOV"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/d5978fa4-4f71-4765-bec0-ec0d11e05ccc_AccsGWTo3o.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/e7fb1f95-56f7-4e9f-a17a-712497546a1a_1777509076078.jpg"
+        ],
+        "videos": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/3598ad31-8383-4e77-bfb9-12ac10691d9f_000AF887-4D0C-4467-A649-563179C09A84_L0_001_1777509039.239466_IMG_0757.MOV",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/4c99b15d-43e4-4bb5-bbaf-4a868979d902_CD9F4525-57A9-4856-8E7E-0FF519EEC48A_L0_001_1777509063.514805_IMG_0758.MOV"
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.5942099307963,
+          -6.86291635963515,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Praktikum LiDAR Handheld",
+        "description": "Hari ini praktikum mata kuliah LiDAR pakai handheld 3D laser scanner. Pertama kali coba Tersus MVP S1 dengan objek pohon di Taman Teletubbies. Seru!!",
+        "latitude": "-6.86291635963515",
+        "longitude": "107.5942099307963",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/dedddb1a-cbda-4a00-b12c-aec4c87d6d88_X1cykEMqsG.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5109c46c-b00d-40a5-939e-2b2dd8c379f8_1777466312628.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0a690d5b-4d24-418b-8a54-4b8af6c5dbeb_1777466312882.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/dcb71621-e32c-4c9f-9cdc-b0d87dee10d3_1777466313037.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/dedddb1a-cbda-4a00-b12c-aec4c87d6d88_X1cykEMqsG.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5109c46c-b00d-40a5-939e-2b2dd8c379f8_1777466312628.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/0a690d5b-4d24-418b-8a54-4b8af6c5dbeb_1777466312882.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/dcb71621-e32c-4c9f-9cdc-b0d87dee10d3_1777466313037.jpg"
+        ],
+        "videos": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          107.55140854514372,
+          -6.969765531538817,
+          0
+        ]
+      },
+      "properties": {
+        "title": "Penyuluhan RW 16 💭",
+        "description": "Penyuluhan mengenai pendataan warga dari RW 16 kepada pengurus RT setempat. #warga",
+        "latitude": "-6.969765531538817",
+        "longitude": "107.55140854514372",
+        "medias_all": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5ccf6610-2fc4-43ea-9cab-e6ae34ada271_l0hJlxNSMn.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5024f19b-766a-4560-8d24-31bd5218b378_1778311412339.mp4",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2972c94c-db01-4243-8826-97c4bb1ea7db_1778311513766.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/296c3c19-2c62-497a-ad27-5c8b76a81859_1778311513803.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8612d0bc-5110-40ec-8307-fc3bf456976e_1778311882119.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9e5c7d90-0a57-488b-b75f-e20b7aac91bd_1778311882153.jpg"
+        ],
+        "images": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5ccf6610-2fc4-43ea-9cab-e6ae34ada271_l0hJlxNSMn.png",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/2972c94c-db01-4243-8826-97c4bb1ea7db_1778311513766.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/296c3c19-2c62-497a-ad27-5c8b76a81859_1778311513803.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/8612d0bc-5110-40ec-8307-fc3bf456976e_1778311882119.jpg",
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/9e5c7d90-0a57-488b-b75f-e20b7aac91bd_1778311882153.jpg"
+        ],
+        "videos": [
+          "https://mapid-app-chat.cdn.mapid.io/692d03413a0cf54ea6633e89/5024f19b-766a-4560-8d24-31bd5218b378_1778311412339.mp4"
+        ]
+      }
+    }
+  ]
+}
