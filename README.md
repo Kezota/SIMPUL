@@ -12,8 +12,10 @@ npm run dev
 
 ## Dokumentasi
 
+- **[IDE-UTAMA.md](IDE-UTAMA.md)** — ide lomba yang dipilih tim: peta denyut per jam + kesenjangan layanan + rekomendasi AI untuk KAI, dengan cara hitung langkah demi langkah. Baca ini duluan.
 - **[PROJECT.md](PROJECT.md)** — apa yang dibangun, stack, struktur file, peran AI, status terhadap ketentuan lomba, dan yang belum dikerjakan.
 - **[DATA-DAN-ANALISIS.md](DATA-DAN-ANALISIS.md)** — data apa yang dipakai, cleaning-nya apa, rumus analisisnya bagaimana, dan angka apa yang keluar.
+- **[RESEARCH-AKSESIBILITAS.md](RESEARCH-AKSESIBILITAS.md)** — riset penemuan masalah untuk arah ide aksesibilitas: 11 temuan berlabel bukti, 3 kandidat problem statement, dan daftar riset primer untuk tim.
 
 ## Basemap
 
