@@ -26,6 +26,9 @@ export const usingMapidBasemap = Boolean(MAPID_STYLE_URL)
 const ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>'
 
+const SATELLITE_ATTRIBUTION =
+  'Citra: Esri, Maxar, Earthstar Geographics & GIS User Community'
+
 function rasterStyle(variant: 'light' | 'dark'): Style {
   const name = variant === 'dark' ? 'dark_all' : 'light_all'
   return {
@@ -55,9 +58,31 @@ function rasterStyle(variant: 'light' | 'dark'): Style {
   }
 }
 
-export type BasemapVariant = 'light' | 'dark'
+function satelliteStyle(): Style {
+  return {
+    version: 8,
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+    sources: {
+      basemap: {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        ],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: SATELLITE_ATTRIBUTION,
+      },
+    },
+    layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
+  }
+}
+
+export type BasemapVariant = 'light' | 'dark' | 'satellite'
 
 export function getBasemapStyle(variant: BasemapVariant): Style {
+  // Satelit selalu tersedia (Esri World Imagery, gratis + atribusi) — basemap
+  // MAPID menggantikan varian terang/gelap saja.
+  if (variant === 'satellite') return satelliteStyle()
   return MAPID_STYLE_URL ?? rasterStyle(variant)
 }
 

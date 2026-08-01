@@ -1303,3 +1303,589 @@ body {
     gap: 8px;
   }
 }
+
+/* ── LAJU ─────────────────────────────────────────────────────────────────── */
+.laju-mark {
+  background: linear-gradient(135deg, #f59e0b, #ef4444 55%, #7c3aed);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Penggeser blok waktu */
+.time-slider {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow);
+  width: min(560px, calc(100% - 24px));
+}
+
+.ts-play {
+  font: inherit;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ts-play.on {
+  background: #ef4444;
+}
+
+.ts-track {
+  flex: 1;
+  min-width: 0;
+}
+
+.ts-track input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.ts-labels {
+  display: flex;
+  justify-content: space-between;
+}
+
+.ts-labels button {
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: center;
+  color: var(--muted);
+  line-height: 1.15;
+}
+
+.ts-labels button b {
+  display: block;
+  font-size: 11.5px;
+}
+
+.ts-labels button small {
+  font-size: 9.5px;
+}
+
+.ts-labels button.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Marker simpul LAJU */
+.laju-node {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.laju-node-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  background: #0f172a;
+  border: 2.5px solid #fff;
+  box-shadow: 0 1px 5px rgb(0 0 0 / 0.45);
+  transform: rotate(45deg);
+  flex: none;
+}
+
+.laju-node-terminal .laju-node-dot {
+  border-radius: 50%;
+  transform: none;
+  background: #7c3aed;
+}
+
+.laju-node-kcic .laju-node-dot {
+  background: #dc2626;
+}
+
+.laju-node-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #0f172a;
+  background: rgb(255 255 255 / 0.9);
+  padding: 1px 6px;
+  border-radius: 5px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+
+.laju-node-label em {
+  font-style: normal;
+  margin-left: 5px;
+  color: #0284c7;
+  font-variant-numeric: tabular-nums;
+}
+
+.laju-node-label em.low {
+  color: #dc2626;
+}
+
+/* Pin aksesibilitas */
+.laju-pin {
+  font: inherit;
+  font-size: 13px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50% 50% 50% 4px;
+  border: 2px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.35);
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+
+.laju-pin-ramah { background: #16a34a; }
+.laju-pin-tidak-ramah { background: #dc2626; }
+.laju-pin-belum-dinilai { background: #64748b; }
+
+/* Legenda LAJU */
+.laju-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.laju-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.laju-legend i {
+  width: 14px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+.laju-legend .lg-est {
+  background: repeating-linear-gradient(45deg, #f59e0b 0 3px, transparent 3px 6px);
+  opacity: 0.7;
+}
+
+.laju-legend .lg-gap-jangkauan {
+  clip-path: none;
+  height: 3px;
+  background: #dc2626;
+  border-radius: 2px;
+}
+
+.laju-legend .lg-gap-jadwal {
+  clip-path: none;
+  height: 3px;
+  background: #ea580c;
+  border-radius: 2px;
+}
+
+/* Rekomendasi */
+.rec-title-btn {
+  font: inherit;
+  font-weight: 650;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.rec-title-btn:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.rec-jangkauan {
+  border-left: 3px solid #dc2626;
+}
+
+.rec-jadwal {
+  border-left: 3px solid #ea580c;
+}
+
+.rec-access {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: #6d28d9;
+  background: #ede9fe;
+  padding: 6px 8px;
+  border-radius: 7px;
+}
+
+.app[data-theme='dark'] .rec-access {
+  background: #2e1065;
+  color: #c4b5fd;
+}
+
+/* Tombol kembali dari mode eksplorasi */
+.mode-back {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 50;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: none;
+  background: #0f172a;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+}
+
+.mode-back:hover {
+  background: #1e293b;
+}
+
+@media (max-width: 980px) {
+  .time-slider {
+    bottom: 10px;
+    padding: 8px 10px;
+  }
+}
+
+/* ── LAJU v2: UX rombakan ─────────────────────────────────────────────────── */
+.layout-laju {
+  grid-template-columns: minmax(0, 1fr) 400px;
+}
+
+/* Pemilih cerita (mode) */
+.mode-switch {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 4;
+  display: flex;
+  gap: 4px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: var(--shadow);
+}
+
+.mode-switch button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.mode-switch button.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.mode-switch .access-chip {
+  padding: 8px 10px;
+}
+
+.mode-switch .access-chip.on {
+  background: #7c3aed;
+  color: #fff;
+}
+
+/* Legenda ringkas */
+.laju-legend-card {
+  position: absolute;
+  left: 14px;
+  bottom: 96px;
+  z-index: 3;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow);
+  width: 218px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.ramp-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #fef3c7, #fdba74, #f87171, #b91c1c);
+  margin-bottom: 3px;
+}
+
+.ramp-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.laju-legend-card small {
+  display: block;
+  line-height: 1.45;
+  font-size: 10.5px;
+}
+
+.gap-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+
+.gap-legend-row i {
+  width: 13px;
+  height: 11px;
+  border-radius: 3px;
+  flex: none;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+
+/* Petunjuk pertama kali */
+.coach-mark {
+  position: absolute;
+  left: 50%;
+  bottom: 110px;
+  transform: translateX(-50%);
+  z-index: 5;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  animation: coach-bob 2.2s ease-in-out infinite;
+}
+
+.coach-mark u {
+  margin-left: 6px;
+  opacity: 0.8;
+}
+
+@keyframes coach-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-5px); }
+}
+
+/* Baris aksi di kartu rekomendasi */
+.rec-action {
+  margin: 7px 0 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Popup gap note */
+.wg-popup .pop-gap {
+  margin: 6px 0;
+  font-size: 11.5px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+@media (max-width: 980px) {
+  .layout-laju {
+    grid-template-columns: 1fr;
+  }
+
+  .laju-legend-card {
+    display: none;
+  }
+
+  .mode-switch {
+    top: 10px;
+    left: 10px;
+  }
+
+  .coach-mark {
+    bottom: 130px;
+    font-size: 12px;
+  }
+}
+
+/* ── LAJU v3: rel, satelit, kartu bernomor ────────────────────────────────── */
+.mode-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 2px;
+  background: var(--border);
+}
+
+.icon-chip {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.icon-chip.on {
+  background: #0f172a;
+  color: #fff;
+}
+
+.icon-chip.on.purple {
+  background: #7c3aed;
+}
+
+/* Marker rekomendasi bernomor di peta */
+.laju-rec-badge {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2.5px solid #fff;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.4);
+  display: grid;
+  place-items: center;
+  transition: transform 0.12s;
+}
+
+.laju-rec-badge:hover {
+  transform: scale(1.18);
+}
+
+.laju-rec-badge-jangkauan { background: #dc2626; }
+.laju-rec-badge-jadwal { background: #f97316; }
+
+/* Kartu rekomendasi v2 */
+.rec-card {
+  padding: 0 0 12px !important;
+  overflow: hidden;
+}
+
+.rec-card.is-active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.rec-card-btn {
+  font: inherit;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 6px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.rec-card-btn:hover b {
+  color: var(--accent);
+}
+
+.rec-num {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.rec-num-jangkauan { background: #dc2626; }
+.rec-num-jadwal { background: #f97316; }
+
+.rec-main {
+  min-width: 0;
+}
+
+.rec-main b {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.rec-stats {
+  display: flex;
+  gap: 6px;
+  padding: 4px 12px 0;
+  flex-wrap: wrap;
+}
+
+.rec-stat {
+  flex: 1;
+  min-width: 72px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.rec-stat b {
+  display: block;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.rec-stat small {
+  font-size: 9.5px;
+  color: var(--muted);
+  line-height: 1.2;
+  display: block;
+}
+
+.rec-card > p {
+  padding: 0 12px;
+}
+
+.rec-card .rec-action {
+  padding: 0 12px;
+}
+
+.rec-card .rec-access {
+  margin: 6px 12px 0;
+}
