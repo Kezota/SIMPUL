@@ -1,9 +1,9 @@
-# LAJU 🚈
+# SIMPUL 🚈
 
 **Peta aktivitas kota & kesenjangan layanan transportasi massal — Bandung Raya.**
 Prototipe WebGIS untuk MAPID WebGIS Competition 2026 (*Maps That Think! — Mass Transportation Edition*).
 
-> Kota itu punya denyut — ramai jam sekian, sepi jam sekian. LAJU membacanya dari jejak kegiatan nyata warga di data MAPID (jam transaksi struk, kondisi tempat makan, cap waktu foto laporan warga, sebaran usaha), lalu menabrakkannya dengan layanan transit yang ada. Hasilnya: peta yang bisa digeser per blok waktu, kawasan "ramai tapi tak terlayani" tersorot otomatis, dan rekomendasi beralasan untuk KAI/Dishub.
+> Kota itu punya denyut — ramai jam sekian, sepi jam sekian. SIMPUL membacanya dari jejak kegiatan nyata warga di data MAPID (jam transaksi struk, kondisi tempat makan, cap waktu foto laporan warga, sebaran usaha), lalu menabrakkannya dengan layanan transit yang ada. Hasilnya: peta yang bisa digeser per blok waktu, kawasan "ramai tapi tak terlayani" tersorot otomatis, dan rekomendasi beralasan untuk KAI/Dishub.
 
 ## Fitur
 
@@ -39,6 +39,7 @@ Tidak ada kode lain yang perlu diubah.
 |---|---|
 | **[IDE-UTAMA.md](IDE-UTAMA.md)** | Ide lengkap dalam bahasa sederhana — fitur, data, alasan |
 | **[PERHITUNGAN.md](PERHITUNGAN.md)** | Cara hitung langkah demi langkah + bobot yang dipakai + contoh nyata dari data sample |
+| **[ARSITEKTUR.md](ARSITEKTUR.md)** | Rancangan implementasi penuh: pipeline batch, penyimpanan, serverless, diagram Mermaid siap render |
 | **[DATA-DAN-ANALISIS.md](DATA-DAN-ANALISIS.md)** | Profil 4 dataset MAPID, cleaning, dan temuan awal (kos 0% dalam 1 km, dll.) |
 | **[RESEARCH-AKSESIBILITAS.md](RESEARCH-AKSESIBILITAS.md)** | Riset penemuan masalah untuk fitur aksesibilitas: 11 temuan berlabel bukti, problem statement, panduan wawancara |
 | **[PROJECT.md](PROJECT.md)** | Catatan teknis mode Eksplorasi Data (arsitektur adapter, dll.) |

@@ -1,5 +1,5 @@
 /**
- * Penyusun rekomendasi LAJU.
+ * Penyusun rekomendasi SIMPUL.
  *
  * Aturannya deterministik dan bisa diaudit — AI (LLM) nantinya hanya
  * memperhalus kalimat, TIDAK menentukan isi. Semua angka di rekomendasi
@@ -11,7 +11,7 @@ import type { TransitNode } from '../lib/types'
 import { hexKey, hexNeighbors } from './hexgrid'
 import { SERVICE_LOW_THRESHOLD, SERVICE_PROFILE } from './serviceProfiles'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
-import type { HexCell, LajuModel } from './engine'
+import type { HexCell, SimpulModel } from './engine'
 import { ACCESS_PINS } from './accessPins'
 
 export interface Recommendation {
@@ -51,7 +51,7 @@ function accessNoteFor(lat: number, lon: number): string | null {
  * Rekomendasi JADWAL: per simpul, blok dengan kegiatan tinggi di sekitarnya
  * (≤2 km) tapi profil layanannya rendah.
  */
-function scheduleRecs(model: LajuModel): Recommendation[] {
+function scheduleRecs(model: SimpulModel): Recommendation[] {
   const recs: Recommendation[] = []
   for (const node of model.nodes) {
     const nearby = model.cells.filter(
@@ -95,7 +95,7 @@ function scheduleRecs(model: LajuModel): Recommendation[] {
  * Rekomendasi JANGKAUAN: kelompok sel bersebelahan yang ramai (di blok apa pun)
  * tapi >2 km dari semua simpul → kandidat koridor pengumpan / halte baru.
  */
-function coverageRecs(model: LajuModel): Recommendation[] {
+function coverageRecs(model: SimpulModel): Recommendation[] {
   const farBusy = model.cells.filter(
     (c) =>
       c.nearestNodeDistM > 2000 &&
@@ -177,7 +177,7 @@ function coverageRecs(model: LajuModel): Recommendation[] {
     })
 }
 
-export function buildRecommendations(model: LajuModel): Recommendation[] {
+export function buildRecommendations(model: SimpulModel): Recommendation[] {
   // Dua jenis rekomendasi dijamin sama-sama tampil — kalau digabung mentah,
   // skor kantong jangkauan (yang membawa bonus kepadatan usaha) selalu
   // menenggelamkan rekomendasi jadwal.

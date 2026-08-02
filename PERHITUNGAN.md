@@ -1,6 +1,6 @@
-# PERHITUNGAN.md — Cara LAJU Menghitung
+# PERHITUNGAN.md — Cara SIMPUL Menghitung
 
-> Dokumen ini menjelaskan **persis** apa yang dihitung aplikasi, langkah demi langkah, dengan angka bobot yang benar-benar dipakai di kode (`src/laju/engine.ts`, `serviceProfiles.ts`, `recommend.ts`). Semua angka contoh di bagian akhir adalah **hasil nyata** dari menjalankan mesinnya atas data sample — bukan karangan.
+> Dokumen ini menjelaskan **persis** apa yang dihitung aplikasi, langkah demi langkah, dengan angka bobot yang benar-benar dipakai di kode (`src/simpul/engine.ts`, `serviceProfiles.ts`, `recommend.ts`). Semua angka contoh di bagian akhir adalah **hasil nyata** dari menjalankan mesinnya atas data sample — bukan karangan.
 
 ---
 

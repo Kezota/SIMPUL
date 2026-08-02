@@ -1,5 +1,5 @@
 /**
- * Asisten AI LAJU — pertanyaan bahasa biasa → jawaban + aksi peta.
+ * Asisten AI SIMPUL — pertanyaan bahasa biasa → jawaban + aksi peta.
  *
  * Masih rule-based (pola pertanyaan yang diantisipasi), belum LLM — tapi
  * kontraknya sudah final: versi LLM tinggal mengganti isi ask() dengan tool
@@ -8,10 +8,10 @@
  */
 
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
-import { summarizeBlocks, type LajuModel } from './engine'
+import { summarizeBlocks, type SimpulModel } from './engine'
 import type { Recommendation } from './recommend'
 
-export interface LajuAnswer {
+export interface SimpulAnswer {
   answer: string
   /** Kalau terisi: slider peta ikut pindah ke blok ini. */
   setBlock: BlockId | null
@@ -38,16 +38,16 @@ function detectBlock(q: string): BlockId | null {
   return null
 }
 
-export function askLaju(
+export function askSimpul(
   question: string,
-  model: LajuModel,
+  model: SimpulModel,
   recs: Recommendation[],
-): LajuAnswer {
+): SimpulAnswer {
   const q = question.toLowerCase().trim()
   const trace: string[] = [`Input: "${question}"`]
   const facts: { label: string; value: string }[] = []
   let setBlock: BlockId | null = detectBlock(q)
-  let focus: LajuAnswer['focus'] = null
+  let focus: SimpulAnswer['focus'] = null
 
   const node = model.nodes.find((n) => {
     const words = n.name.toLowerCase().replace(/stasiun|terminal|whoosh/g, '').trim().split(/\s+/)
@@ -146,7 +146,7 @@ export function askLaju(
   return { answer, setBlock, focus, trace, facts }
 }
 
-export const LAJU_SUGGESTIONS = [
+export const SIMPUL_SUGGESTIONS = [
   'Ringkas kondisinya',
   'Kawasan mana yang masih hidup malam hari?',
   'Bagaimana sekitar Kiaracondong?',

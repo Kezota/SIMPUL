@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import logoImg from '../assets/logo.jpeg'
 import type { BasemapVariant } from '../lib/basemap'
 import { buildModel } from './engine'
 import { buildRecommendations, type Recommendation } from './recommend'
-import LajuMap, { type MapMode } from './LajuMap'
+import SimpulMap, { type MapMode } from './SimpulMap'
 import TimeSlider from './TimeSlider'
-import { LajuAssistantPanel, LajuMethodPanel, RecPanel } from './panels'
+import { SimpulAssistantPanel, SimpulMethodPanel, RecPanel } from './panels'
 import type { BlockId } from './timeblocks'
-import type { LajuAnswer } from './assistant'
+import type { SimpulAnswer } from './assistant'
 
 type Tab = 'rekomendasi' | 'ai' | 'metode'
 
@@ -30,7 +31,7 @@ function useIsMobile() {
   return mobile
 }
 
-export default function LajuApp({ onOpenExplorer }: { onOpenExplorer: () => void }) {
+export default function SimpulApp({ onOpenExplorer }: { onOpenExplorer: () => void }) {
   // Seluruh model dihitung sekali di muka: bukti → sel×blok → kelas → gap.
   const model = useMemo(() => buildModel(), [])
   const recs = useMemo(() => buildRecommendations(model), [model])
@@ -76,7 +77,7 @@ export default function LajuApp({ onOpenExplorer }: { onOpenExplorer: () => void
     if (isMobile) setSheetOpen(true)
   }
 
-  const applyAnswer = (a: LajuAnswer) => {
+  const applyAnswer = (a: SimpulAnswer) => {
     if (a.setBlock) setBlock(a.setBlock)
     if (a.focus) flyTo(a.focus.lat, a.focus.lon, a.focus.zoom)
     setHintDismissed(true)
@@ -96,9 +97,9 @@ export default function LajuApp({ onOpenExplorer }: { onOpenExplorer: () => void
           />
         )
       case 'ai':
-        return <LajuAssistantPanel model={model} recs={recs} onApply={applyAnswer} />
+        return <SimpulAssistantPanel model={model} recs={recs} onApply={applyAnswer} />
       case 'metode':
-        return <LajuMethodPanel model={model} />
+        return <SimpulMethodPanel model={model} />
     }
   }
 
@@ -106,9 +107,9 @@ export default function LajuApp({ onOpenExplorer }: { onOpenExplorer: () => void
     <div className={`app${isMobile ? ' is-mobile' : ''}`} data-theme={theme}>
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark laju-mark" aria-hidden="true" />
+          <img src={logoImg} alt="SIMPUL Logo" className="brand-mark simpul-mark" />
           <div>
-            <h1>LAJU</h1>
+            <h1>SIMPUL</h1>
             <p>Lihat kapan kota hidup — dan di mana transportasinya belum hadir</p>
           </div>
         </div>
@@ -127,9 +128,9 @@ export default function LajuApp({ onOpenExplorer }: { onOpenExplorer: () => void
         </div>
       </header>
 
-      <main className="layout layout-laju">
+      <main className="layout layout-simpul">
         <section className="map-area">
-          <LajuMap
+          <SimpulMap
             model={model}
             recs={recs}
             block={block}
@@ -185,7 +186,7 @@ export default function LajuApp({ onOpenExplorer }: { onOpenExplorer: () => void
           </div>
 
           {/* Legenda ringkas, ikut mode */}
-          <div className="laju-legend-card">
+          <div className="simpul-legend-card">
             {mode === 'denyut' ? (
               <>
                 <div className="ramp-bar" />

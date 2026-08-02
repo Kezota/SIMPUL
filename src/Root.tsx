@@ -1,15 +1,15 @@
 import { useState } from 'react'
 
-import LajuApp from './laju/LajuApp'
+import SimpulApp from './simpul/SimpulApp'
 import ExplorerApp from './App'
 
 /**
- * LAJU adalah produk utamanya; Eksplorasi Data (aplikasi lama, 4 dataset
+ * SIMPUL adalah produk utamanya; Eksplorasi Data (aplikasi lama, 4 dataset
  * mentah) tetap tersedia sebagai bukti pemahaman data — berguna saat
  * presentasi proposal.
  */
 export default function Root() {
-  const [mode, setMode] = useState<'laju' | 'explorer'>('laju')
+  const [mode, setMode] = useState<'simpul' | 'explorer'>('simpul')
 
   if (mode === 'explorer')
     return (
@@ -18,13 +18,13 @@ export default function Root() {
         <button
           type="button"
           className="mode-back"
-          onClick={() => setMode('laju')}
-          title="Kembali ke LAJU"
+          onClick={() => setMode('simpul')}
+          title="Kembali ke SIMPUL"
         >
-          ← Kembali ke LAJU
+          ← Kembali ke SIMPUL
         </button>
       </>
     )
 
-  return <LajuApp onOpenExplorer={() => setMode('explorer')} />
+  return <SimpulApp onOpenExplorer={() => setMode('explorer')} />
 }

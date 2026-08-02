@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { BarList } from '../components/charts'
-import { askLaju, LAJU_SUGGESTIONS, type LajuAnswer } from './assistant'
-import { summarizeBlocks, WEIGHTS, type LajuModel } from './engine'
+import { askSimpul, SIMPUL_SUGGESTIONS, type SimpulAnswer } from './assistant'
+import { summarizeBlocks, WEIGHTS, type SimpulModel } from './engine'
 import type { Recommendation } from './recommend'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
 
@@ -18,7 +18,7 @@ export function RecPanel({
   onSetBlock,
   onFocus,
 }: {
-  model: LajuModel
+  model: SimpulModel
   recs: Recommendation[]
   block: BlockId
   activeRecId: string | null
@@ -101,17 +101,17 @@ export function RecPanel({
 
 interface Turn {
   q: string
-  r: LajuAnswer
+  r: SimpulAnswer
 }
 
-export function LajuAssistantPanel({
+export function SimpulAssistantPanel({
   model,
   recs,
   onApply,
 }: {
-  model: LajuModel
+  model: SimpulModel
   recs: Recommendation[]
-  onApply: (r: LajuAnswer) => void
+  onApply: (r: SimpulAnswer) => void
 }) {
   const [input, setInput] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
@@ -121,7 +121,7 @@ export function LajuAssistantPanel({
   const submit = (q: string) => {
     const question = q.trim()
     if (!question) return
-    const r = askLaju(question, model, recs)
+    const r = askSimpul(question, model, recs)
     setTurns((t) => [...t, { q: question, r }])
     setInput('')
     onApply(r)
@@ -142,7 +142,7 @@ export function LajuAssistantPanel({
           <div className="ai-empty">
             <p>Coba tanya:</p>
             <div className="chips">
-              {LAJU_SUGGESTIONS.map((s) => (
+              {SIMPUL_SUGGESTIONS.map((s) => (
                 <button key={s} type="button" className="chip suggest" onClick={() => submit(s)}>
                   {s}
                 </button>
@@ -196,7 +196,7 @@ export function LajuAssistantPanel({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Tanya apa saja soal peta ini…"
-          aria-label="Pertanyaan untuk asisten LAJU"
+          aria-label="Pertanyaan untuk asisten SIMPUL"
         />
         <button type="submit" disabled={!input.trim()}>
           Tanya
@@ -208,7 +208,7 @@ export function LajuAssistantPanel({
 
 /* ── Panel Metode ─────────────────────────────────────────────────────────── */
 
-export function LajuMethodPanel({ model }: { model: LajuModel }) {
+export function SimpulMethodPanel({ model }: { model: SimpulModel }) {
   return (
     <div className="panel">
       <p className="block-note dataset-blurb">

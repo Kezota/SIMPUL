@@ -16,14 +16,14 @@ import { hexPolygon } from './hexgrid'
 import { SERVICE_PROFILE } from './serviceProfiles'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
 import { ACCESS_PINS } from './accessPins'
-import type { LajuModel } from './engine'
+import type { SimpulModel } from './engine'
 import type { Recommendation } from './recommend'
 
 /** Dua cerita, dua tampilan — supaya layar tidak menceritakan semuanya sekaligus. */
 export type MapMode = 'denyut' | 'gap'
 
 interface Props {
-  model: LajuModel
+  model: SimpulModel
   recs: Recommendation[]
   block: BlockId
   mode: MapMode
@@ -52,7 +52,7 @@ const HEX_MIN_ZOOM = 12.8
 const HEAT_FADE_START = 12.4
 const HEAT_FADE_END = 13.4
 
-export default function LajuMap({
+export default function SimpulMap({
   model,
   recs,
   block,
@@ -364,12 +364,12 @@ export default function LajuMap({
     markersRef.current = model.nodes.map((n) => {
       const service = SERVICE_PROFILE[n.kind][block]
       const el = document.createElement('div')
-      el.className = `laju-node laju-node-${n.kind}`
+      el.className = `simpul-node simpul-node-${n.kind}`
       const badge =
         mode === 'gap'
           ? `<em class="${service <= 0.35 ? 'low' : ''}">${Math.round(service * 100)}%</em>`
           : ''
-      el.innerHTML = `<span class="laju-node-dot"></span><span class="laju-node-label">${escapeHtml(
+      el.innerHTML = `<span class="simpul-node-dot"></span><span class="simpul-node-label">${escapeHtml(
         n.name.replace(/^Stasiun |^Terminal /, ''),
       )}${badge}</span>`
       el.title =
@@ -399,7 +399,7 @@ export default function LajuMap({
     recMarkersRef.current = recs.map((r, i) => {
       const el = document.createElement('button')
       el.type = 'button'
-      el.className = `laju-rec-badge laju-rec-badge-${r.kind}`
+      el.className = `simpul-rec-badge simpul-rec-badge-${r.kind}`
       el.textContent = `${i + 1}`
       el.title = r.title
       el.addEventListener('click', (ev) => {
@@ -429,7 +429,7 @@ export default function LajuMap({
     pinMarkersRef.current = ACCESS_PINS.map((p) => {
       const el = document.createElement('button')
       el.type = 'button'
-      el.className = `laju-pin laju-pin-${p.status}`
+      el.className = `simpul-pin simpul-pin-${p.status}`
       el.textContent = p.status === 'ramah' ? '♿' : p.status === 'tidak-ramah' ? '!' : '?'
       el.title = p.name
       el.addEventListener('click', (ev) => {

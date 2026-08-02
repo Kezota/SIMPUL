@@ -74,7 +74,7 @@ body {
   height: 34px;
   flex: none;
   border-radius: 10px;
-  background: radial-gradient(circle at 30% 30%, #38bdf8, #0369a1 65%, #082f49);
+  object-fit: cover;
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
@@ -1304,9 +1304,8 @@ body {
   }
 }
 
-/* ── LAJU ─────────────────────────────────────────────────────────────────── */
-.laju-mark {
-  background: linear-gradient(135deg, #f59e0b, #ef4444 55%, #7c3aed);
+/* ── SIMPUL ─────────────────────────────────────────────────────────────────── */
+.simpul-mark {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
@@ -1388,8 +1387,8 @@ body {
   color: var(--accent);
 }
 
-/* Marker simpul LAJU */
-.laju-node {
+/* Marker simpul SIMPUL */
+.simpul-node {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -1397,7 +1396,7 @@ body {
   pointer-events: none;
 }
 
-.laju-node-dot {
+.simpul-node-dot {
   width: 12px;
   height: 12px;
   border-radius: 4px;
@@ -1408,17 +1407,17 @@ body {
   flex: none;
 }
 
-.laju-node-terminal .laju-node-dot {
+.simpul-node-terminal .simpul-node-dot {
   border-radius: 50%;
   transform: none;
   background: #7c3aed;
 }
 
-.laju-node-kcic .laju-node-dot {
+.simpul-node-kcic .simpul-node-dot {
   background: #dc2626;
 }
 
-.laju-node-label {
+.simpul-node-label {
   font-size: 10.5px;
   font-weight: 700;
   color: #0f172a;
@@ -1428,19 +1427,19 @@ body {
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
 }
 
-.laju-node-label em {
+.simpul-node-label em {
   font-style: normal;
   margin-left: 5px;
   color: #0284c7;
   font-variant-numeric: tabular-nums;
 }
 
-.laju-node-label em.low {
+.simpul-node-label em.low {
   color: #dc2626;
 }
 
 /* Pin aksesibilitas */
-.laju-pin {
+.simpul-pin {
   font: inherit;
   font-size: 13px;
   width: 26px;
@@ -1454,12 +1453,12 @@ body {
   color: #fff;
 }
 
-.laju-pin-ramah { background: #16a34a; }
-.laju-pin-tidak-ramah { background: #dc2626; }
-.laju-pin-belum-dinilai { background: #64748b; }
+.simpul-pin-ramah { background: #16a34a; }
+.simpul-pin-tidak-ramah { background: #dc2626; }
+.simpul-pin-belum-dinilai { background: #64748b; }
 
-/* Legenda LAJU */
-.laju-legend {
+/* Legenda SIMPUL */
+.simpul-legend {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1469,13 +1468,13 @@ body {
   color: var(--muted);
 }
 
-.laju-legend li {
+.simpul-legend li {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.laju-legend i {
+.simpul-legend i {
   width: 14px;
   height: 12px;
   border-radius: 3px;
@@ -1483,19 +1482,19 @@ body {
   clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
 }
 
-.laju-legend .lg-est {
+.simpul-legend .lg-est {
   background: repeating-linear-gradient(45deg, #f59e0b 0 3px, transparent 3px 6px);
   opacity: 0.7;
 }
 
-.laju-legend .lg-gap-jangkauan {
+.simpul-legend .lg-gap-jangkauan {
   clip-path: none;
   height: 3px;
   background: #dc2626;
   border-radius: 2px;
 }
 
-.laju-legend .lg-gap-jadwal {
+.simpul-legend .lg-gap-jadwal {
   clip-path: none;
   height: 3px;
   background: #ea580c;
@@ -1570,8 +1569,8 @@ body {
   }
 }
 
-/* ── LAJU v2: UX rombakan ─────────────────────────────────────────────────── */
-.layout-laju {
+/* ── SIMPUL v2: UX rombakan ─────────────────────────────────────────────────── */
+.layout-simpul {
   grid-template-columns: minmax(0, 1fr) 400px;
 }
 
@@ -1618,7 +1617,7 @@ body {
 }
 
 /* Legenda ringkas */
-.laju-legend-card {
+.simpul-legend-card {
   position: absolute;
   left: 14px;
   bottom: 96px;
@@ -1649,7 +1648,7 @@ body {
   margin-bottom: 5px;
 }
 
-.laju-legend-card small {
+.simpul-legend-card small {
   display: block;
   line-height: 1.45;
   font-size: 10.5px;
@@ -1722,11 +1721,11 @@ body {
 }
 
 @media (max-width: 980px) {
-  .layout-laju {
+  .layout-simpul {
     grid-template-columns: 1fr;
   }
 
-  .laju-legend-card {
+  .simpul-legend-card {
     display: none;
   }
 
@@ -1741,7 +1740,7 @@ body {
   }
 }
 
-/* ── LAJU v3: rel, satelit, kartu bernomor ────────────────────────────────── */
+/* ── SIMPUL v3: rel, satelit, kartu bernomor ────────────────────────────────── */
 .mode-sep {
   width: 1px;
   align-self: stretch;
@@ -1770,7 +1769,7 @@ body {
 }
 
 /* Marker rekomendasi bernomor di peta */
-.laju-rec-badge {
+.simpul-rec-badge {
   font: inherit;
   font-size: 13px;
   font-weight: 800;
@@ -1786,12 +1785,12 @@ body {
   transition: transform 0.12s;
 }
 
-.laju-rec-badge:hover {
+.simpul-rec-badge:hover {
   transform: scale(1.18);
 }
 
-.laju-rec-badge-jangkauan { background: #dc2626; }
-.laju-rec-badge-jadwal { background: #f97316; }
+.simpul-rec-badge-jangkauan { background: #dc2626; }
+.simpul-rec-badge-jadwal { background: #f97316; }
 
 /* Kartu rekomendasi v2 */
 .rec-card {

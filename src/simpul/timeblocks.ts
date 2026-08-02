@@ -1,5 +1,5 @@
 /**
- * Blok waktu LAJU.
+ * Blok waktu SIMPUL.
  *
  * Hari dibagi 5 blok (bukan per jam) karena data sample masih tipis — kalau
  * dipecah per jam, tiap sel isinya 0-1 pengamatan dan kesimpulannya bohong.

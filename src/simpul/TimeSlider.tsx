@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
 
 /**
- * Penggeser blok waktu — kontrol utama LAJU. Tombol ▶ memutar blok otomatis
+ * Penggeser blok waktu — kontrol utama SIMPUL. Tombol ▶ memutar blok otomatis
  * supaya "kota bernapas" terlihat tanpa disentuh (enak buat demo).
  */
 export default function TimeSlider({

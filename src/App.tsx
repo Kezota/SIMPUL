@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import logoImg from './assets/logo.jpeg'
 import MapView, { type LayerVisibility } from './components/MapView'
 import ControlPanel from './components/ControlPanel'
 import InsightPanel from './components/InsightPanel'
@@ -225,9 +226,9 @@ export default function App() {
     <div className={`app${isMobile ? ' is-mobile' : ''}`} data-theme={variant}>
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark" aria-hidden="true" />
+          <img src={logoImg} alt="SIMPUL Logo" className="brand-mark" />
           <div>
-            <h1>Denyut Simpul</h1>
+            <h1>SIMPUL · Eksplorasi Data</h1>
             <p>
               Apa yang sebenarnya hidup di sekitar stasiun &amp; terminal — dibaca dari
               data lapangan MAPID

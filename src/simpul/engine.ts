@@ -1,5 +1,5 @@
 /**
- * Mesin hitung LAJU. Alur (detail lengkap + alasan tiap angka: PERHITUNGAN.md):
+ * Mesin hitung SIMPUL. Alur (detail lengkap + alasan tiap angka: PERHITUNGAN.md):
  *
  *   1. Baca 4 dataset MAPID → "bukti kegiatan" berkoordinat + jam + bobot
  *   2. Kelompokkan ke sel heksagon ±500 m × 5 blok waktu
@@ -93,7 +93,7 @@ export interface BlockCurvePoint {
   observedShare: number
 }
 
-export interface LajuModel {
+export interface SimpulModel {
   cells: HexCell[]
   cellByKey: Map<string, HexCell>
   nodes: TransitNode[]
@@ -226,7 +226,7 @@ function emptyBlocks(): Record<BlockId, HexBlock> {
   return { pagi: mk(), siang: mk(), sore: mk(), malam: mk(), larut: mk() }
 }
 
-export function buildModel(): LajuModel {
+export function buildModel(): SimpulModel {
   const struk = readStruk()
   const community = readCommunity()
   const menuCurveObs = readMenuForCurve()
@@ -368,7 +368,7 @@ export interface BlockSummary {
   totalPoints: number
 }
 
-export function summarizeBlocks(model: LajuModel): BlockSummary[] {
+export function summarizeBlocks(model: SimpulModel): BlockSummary[] {
   return TIME_BLOCKS.map((b) => {
     let activeCells = 0
     let ramai = 0
