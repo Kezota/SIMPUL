@@ -59,7 +59,7 @@ export function RecPanel({
         </div>
         <p className="block-note">
           Disusun otomatis dari hitungan — bukan karangan. Nomornya sama dengan nomor di
-          peta (mode Kesenjangan).
+          peta (mode Kesenjangan). Tingkat keyakinan mengikuti banyaknya bukti lapangan.
         </p>
         <ul className="rec-list" ref={listRef}>
           {recs.map((r, i) => (
@@ -72,8 +72,9 @@ export function RecPanel({
                 <span className={`rec-num rec-num-${r.kind}`}>{i + 1}</span>
                 <span className="rec-main">
                   <span className="rec-target">
-                    {r.kind === 'jangkauan' ? 'Tak terjangkau' : 'Jadwal menipis'} ·{' '}
+                    {r.kind === 'jangkauan' ? 'Tak terjangkau' : 'Frekuensi rendah'} ·{' '}
                     {r.target}
+                    <i className={`conf conf-${r.confidence}`}>keyakinan {r.confidence}</i>
                   </span>
                   <b>{r.title}</b>
                 </span>
@@ -216,6 +217,15 @@ export function SimpulMethodPanel({ model }: { model: SimpulModel }) {
       </p>
 
       <section className="block">
+        <h3>Sumber data yang dipakai</h3>
+        <ul className="caveats">
+          {model.sources.map((src) => (
+            <li key={src}>{src}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="block">
         <h3>Cara hitungnya, singkat</h3>
         <ol className="steps">
           <li>
@@ -223,10 +233,12 @@ export function SimpulMethodPanel({ model }: { model: SimpulModel }) {
             <div>
               <b>Kumpulkan bukti kegiatan</b>
               <p>
-                Jam transaksi Struk Go (bobot {WEIGHTS.struk}; e-commerce dibuang), jam
-                laporan warga dari cap foto (bobot {WEIGHTS.community}), label ramai/sepi
-                Menu Go ({WEIGHTS.menuRamai}/{WEIGHTS.menuSedang}/{WEIGHTS.menuSepi}) jadi
-                pola jam kota.
+                Laporan warga Community Maps ditarik langsung dari API MAPID: jam dari
+                "pukul …" yang ditulis surveyor (kalau tidak ada, jam unggah WIB), bobot{' '}
+                {WEIGHTS.aktivitasRamai}/{WEIGHTS.aktivitas}/{WEIGHTS.aktivitasSepi} menurut kata
+                ramai/netral/sepi di teksnya (aturan kata kunci, bukan LLM). Ditambah jam
+                transaksi Struk Go (bobot {WEIGHTS.struk}; e-commerce dibuang) dan label
+                Menu Go ({WEIGHTS.menuRamai}/{WEIGHTS.menuSedang}/{WEIGHTS.menuSepi}).
               </p>
             </div>
           </li>
@@ -240,21 +252,24 @@ export function SimpulMethodPanel({ model }: { model: SimpulModel }) {
           <li>
             <span className="step-n">3</span>
             <div>
-              <b>"Ramai" = dibandingkan se-kota, bukan angka mutlak</b>
+              <b>"Ramai" = dibandingkan se-wilayah, bukan angka mutlak</b>
               <p>
-                Masuk 25% teratas = ramai. Kawasan tanpa data = abu-abu — <b>bukan</b>{' '}
-                dianggap sepi. Kawasan dengan usaha tapi belum diamati diberi perkiraan
-                dan digambar pudar.
+                Masuk 25% teratas = ramai. Kawasan tanpa pengamatan = <b>Tidak Ada Data</b>{' '}
+                — bukan sepi, dan <b>tidak diperkirakan</b> (sesuai PRD). Jumlah titik usaha
+                Properti Go ditampilkan sebagai konteks potensi kawasan, bukan skor.
               </p>
             </div>
           </li>
           <li>
             <span className="step-n">4</span>
             <div>
-              <b>Tabrakkan dengan layanan transit</b>
+              <b>Tabrakkan dengan layanan transit nyata</b>
               <p>
-                Ramai + jauh dari semua simpul (&gt;2 km) = merah. Ramai + dekat tapi
-                jadwal menipis = oranye. Dari situlah rekomendasi disusun.
+                Skor layanan = faktor jarak × (keberangkatan terjadwal pada blok itu ÷
+                persentil-90 se-wilayah), diambil yang tertinggi antara stasiun terdekat
+                (OSM + Gapeka/headway resmi) dan halte terdekat (GTFS TransJakarta).
+                Ramai + tidak ada layanan dalam 1 km = merah (jangkauan). Ramai + layanan
+                ada tapi skornya &lt;35/100 = oranye (frekuensi).
               </p>
             </div>
           </li>
@@ -265,12 +280,30 @@ export function SimpulMethodPanel({ model }: { model: SimpulModel }) {
         <h3>Yang jujur kami akui</h3>
         <ul className="caveats">
           <li>
-            Data sample kecil ({model.counts.strukUsed} transaksi, {model.counts.communityTimed}{' '}
-            laporan) — ini demo cara kerjanya; data penuh dibuka lewat API setelah lolos 50
-            besar.
+            Data aktivitas di wilayah ini: {model.counts.activities.toLocaleString('id-ID')} laporan
+            warga dari API MAPID ({model.counts.activitiesRamai} menyebut ramai,{' '}
+            {model.counts.activitiesSepi} menyebut sepi; {model.counts.activitiesHourFromText} jamnya
+            dibaca dari teks "pukul …"), {model.counts.strukUsed} transaksi Struk Go,{' '}
+            {model.counts.communityTimed} sampel Community Maps ber-jam, {model.counts.menuUsed}{' '}
+            pengamatan Menu Go, {model.counts.properties} titik Properti Go
+            {model.counts.outsideRegion > 0 && ` (${model.counts.outsideRegion} titik sampel berada di luar wilayah dan tidak dipakai)`}.
+            Struk Go, Menu Go, dan Properti Go masih file sampel — endpoint "Missions" MAPID
+            belum disambungkan.
           </li>
-          <li>Jam yang terekam = jam surveyor bekerja, jadi condong ke pagi-siang.</li>
-          <li>Jadwal transit masih perkiraan — akan diganti Gapeka resmi.</li>
+          <li>
+            Jam yang terekam = jam surveyor bekerja (laporan API MAPID memuncak pukul 12–17),
+            jadi blok pagi &amp; larut lebih tipis datanya — bukan berarti kotanya sepi.
+          </li>
+          <li>
+            Sebagian besar laporan API terkumpul Agustus 2026 dari peserta lomba lain; isinya
+            pengamatan lapangan sungguhan, tetapi sebarannya mengikuti lokasi tim-tim itu
+            bekerja, bukan sampel acak se-Jabodetabek.
+          </li>
+          <li>
+            Pembagian perjalanan KRL harian ke blok waktu memakai bobot headway sibuk/non-sibuk
+            (timetable per stasiun belum tersedia sebagai data terbuka). Headway GTFS
+            TransJakarta hampir rata sepanjang hari, jadi variasi antar-blok untuk bus kecil.
+          </li>
           <li>
             Ini bukan ramalan jumlah penumpang. Ini peta "kawasan hidup" vs "layanan ada" —
             data penumpang KAI tinggal masuk sebagai pengkalibrasi kalau tersedia.

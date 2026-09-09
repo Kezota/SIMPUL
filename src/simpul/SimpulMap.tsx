@@ -16,7 +16,7 @@ import { hexPolygon } from './hexgrid'
 import { SERVICE_PROFILE } from './serviceProfiles'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
 import { ACCESS_PINS } from './accessPins'
-import type { SimpulModel } from './engine'
+import type { RegionDef, SimpulModel } from './engine'
 import type { Recommendation } from './recommend'
 
 /** Dua cerita, dua tampilan — supaya layar tidak menceritakan semuanya sekaligus. */
@@ -29,6 +29,8 @@ interface Props {
   mode: MapMode
   showAccess: boolean
   showRail: boolean
+  showStops: boolean
+  region: RegionDef
   variant: BasemapVariant
   focus: { lat: number; lon: number; zoom: number; nonce: number } | null
   onRecClick: (rec: Recommendation, index: number) => void
@@ -59,6 +61,8 @@ export default function SimpulMap({
   mode,
   showAccess,
   showRail,
+  showStops,
+  region,
   variant,
   focus,
   onRecClick,
@@ -91,7 +95,6 @@ export default function SimpulMap({
                 key: c.key,
                 percentile: hb.percentile,
                 gap: hb.gap ?? '',
-                estimatedOnly: c.hasObservation ? 0 : 1,
               },
             }
           }),
@@ -106,9 +109,7 @@ export default function SimpulMap({
                 type: 'Point' as const,
                 coordinates: [c.center.lon, c.center.lat],
               },
-              // perkiraan diredam supaya permukaan panasnya tetap didominasi
-              // pengamatan asli
-              properties: { w: c.hasObservation ? hb.total : hb.total * 0.55 },
+              properties: { w: hb.total },
             }
           }),
         },
@@ -117,8 +118,26 @@ export default function SimpulMap({
     return out
   }, [model])
 
-  const latest = useRef({ fcByBlock, block, mode, model, showRail })
-  latest.current = { fcByBlock, block, mode, model, showRail }
+  /** Halte TJ/JakLingko sebagai titik (dari GTFS) — untuk layer & popup. */
+  const stopsFC = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: model.stops.map((st) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [st.lon, st.lat] },
+        properties: {
+          id: st.id,
+          name: st.name,
+          jak: st.jak ? 1 : 0,
+          pagi: st.dep.pagi, siang: st.dep.siang, sore: st.dep.sore, malam: st.dep.malam, larut: st.dep.larut,
+        },
+      })),
+    }),
+    [model],
+  )
+
+  const latest = useRef({ fcByBlock, stopsFC, block, mode, model, showRail, showStops, region })
+  latest.current = { fcByBlock, stopsFC, block, mode, model, showRail, showStops, region }
 
   /* ── Init peta (sekali) ────────────────────────────────────────────────── */
   useEffect(() => {
@@ -127,8 +146,8 @@ export default function SimpulMap({
     const map = new MLMap({
       container: containerRef.current,
       style: getBasemapStyle(variant),
-      center: [107.594, -6.918],
-      zoom: 11.4,
+      center: region.center,
+      zoom: region.zoom,
       attributionControl: { compact: true },
     })
     mapRef.current = map
@@ -146,6 +165,15 @@ export default function SimpulMap({
 
     const ro = new ResizeObserver(() => map.resize())
     ro.observe(containerRef.current)
+
+    // Label stasiun disembunyikan saat zoom jauh (129 stasiun + 7.8k halte akan
+    // saling tumpuk); titiknya tetap tampil. Dikontrol lewat atribut data + CSS.
+    const syncZoomClass = () => {
+      const z = map.getZoom()
+      containerRef.current?.setAttribute('data-zoom', z < 11.8 ? 'far' : z < 13 ? 'mid' : 'near')
+    }
+    syncZoomClass()
+    map.on('zoom', syncZoomClass)
 
     return () => {
       ro.disconnect()
@@ -187,6 +215,44 @@ export default function SimpulMap({
           'line-width': 1.6,
           'line-dasharray': [2.2, 1.4],
         },
+      })
+    }
+
+    if (!map.getSource('stops')) {
+      map.addSource('stops', { type: 'geojson', data: latest.current.stopsFC })
+      map.addLayer({
+        id: 'stops-dots',
+        type: 'circle',
+        source: 'stops',
+        minzoom: 11,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 1.6, 14, 4.5],
+          'circle-color': ['case', ['==', ['get', 'jak'], 1], '#0ea5e9', '#1d4ed8'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 14, 1],
+          'circle-opacity': 0.85,
+        },
+      })
+      map.on('click', 'stops-dots', (e) => {
+        const f = e.features?.[0]
+        if (!f) return
+        const p = f.properties ?? {}
+        const b = latest.current.block
+        popupRef.current?.remove()
+        popupRef.current = new Popup({ offset: 8, closeButton: true, maxWidth: '240px', className: 'wg-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div class="pop"><h4>🚌 ${escapeHtml(String(p.name ?? 'Halte'))}</h4>
+             <p>±${p[b]} keberangkatan terjadwal pada blok ${escapeHtml(blockLabel(b))} (hari kerja).</p>
+             <small>${p.jak === 1 ? 'Dilayani JakLingko/Mikrotrans' : 'Halte BRT/non-BRT TransJakarta'} · GTFS resmi TransJakarta</small></div>`,
+          )
+          .addTo(map)
+      })
+      map.on('mouseenter', 'stops-dots', () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+      map.on('mouseleave', 'stops-dots', () => {
+        map.getCanvas().style.cursor = ''
       })
     }
 
@@ -235,12 +301,7 @@ export default function SimpulMap({
             75, '#f87171',
             100, '#b91c1c',
           ],
-          'fill-opacity': [
-            'case',
-            ['==', ['get', 'estimatedOnly'], 1],
-            0.3,
-            0.65,
-          ],
+          'fill-opacity': 0.65,
         },
       })
       map.addLayer({
@@ -296,13 +357,13 @@ export default function SimpulMap({
                   : '⚪ Belum ada data'
           const gapLabel =
             hb.gap === 'jangkauan'
-              ? `<p class="pop-gap">Ramai tapi <b>jauh dari semua simpul</b> (${formatDistance(cell.nearestNodeDistM)} ke ${escapeHtml(cell.nearestNode.name)}).</p>`
+              ? `<p class="pop-gap">Ramai tapi <b>tidak ada stasiun/halte dalam 1 km</b> (layanan terdekat ${formatDistance(cell.nearestTransitM)}).</p>`
               : hb.gap === 'jadwal'
-                ? `<p class="pop-gap">Ramai tapi <b>jadwal sedang menipis</b> pada blok ini.</p>`
+                ? `<p class="pop-gap">Ramai tapi <b>frekuensi rendah</b>: ±${hb.railDep} keberangkatan rel, ±${hb.busDep} bus pada blok ini.</p>`
                 : ''
           const bukti = cell.hasObservation
-            ? `${cell.evidence.length} bukti kegiatan${cell.propertyCount ? ` · ${cell.propertyCount} titik usaha` : ''}`
-            : `perkiraan dari ${cell.propertyCount} titik usaha (belum ada pengamatan langsung)`
+            ? `${cell.evidence.length} bukti kegiatan${cell.propertyCount ? ` · ${cell.propertyCount} titik usaha tercatat` : ''}`
+            : `belum ada pengamatan langsung${cell.propertyCount ? ` · ${cell.propertyCount} titik usaha tercatat` : ''}`
           popupRef.current?.remove()
           popupRef.current = new Popup({ offset: 8, closeButton: true, maxWidth: '260px', className: 'wg-popup' })
             .setLngLat(e.lngLat)
@@ -351,9 +412,19 @@ export default function SimpulMap({
 
   function applyRail(map: MLMap) {
     const on = latest.current.showRail
-    for (const id of ['rail-casing', 'rail-ka', 'rail-kcic']) {
-      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
+    const rid = latest.current.region.id
+    const base: Record<string, unknown[]> = {
+      'rail-casing': ['==', ['get', 'region'], rid],
+      'rail-ka': ['all', ['==', ['get', 'region'], rid], ['==', ['get', 'kind'], 'ka']],
+      'rail-kcic': ['all', ['==', ['get', 'region'], rid], ['in', ['get', 'kind'], ['literal', ['kcic', 'mrt', 'lrt']]]],
     }
+    for (const id of Object.keys(base)) {
+      if (!map.getLayer(id)) continue
+      map.setFilter(id, base[id] as never)
+      map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
+    }
+    if (map.getLayer('stops-dots'))
+      map.setLayoutProperty('stops-dots', 'visibility', latest.current.showStops ? 'visible' : 'none')
   }
 
   /* ── Marker simpul: nama selalu; skor layanan hanya di mode kesenjangan ── */
@@ -362,20 +433,22 @@ export default function SimpulMap({
     if (!map) return
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = model.nodes.map((n) => {
-      const service = SERVICE_PROFILE[n.kind][block]
+      const dep = n.depByBlock?.[block]
+      const service =
+        dep != null ? Math.min(1, dep / model.refDep.rail[block]) : SERVICE_PROFILE[n.kind][block]
       const el = document.createElement('div')
       el.className = `simpul-node simpul-node-${n.kind}`
       const badge =
         mode === 'gap'
-          ? `<em class="${service <= 0.35 ? 'low' : ''}">${Math.round(service * 100)}%</em>`
+          ? `<em class="${service <= 0.35 ? 'low' : ''}">${dep != null ? `${dep}×` : `${Math.round(service * 100)}%`}</em>`
           : ''
       el.innerHTML = `<span class="simpul-node-dot"></span><span class="simpul-node-label">${escapeHtml(
-        n.name.replace(/^Stasiun |^Terminal /, ''),
+        n.name.replace(/^Stasiun (MRT |LRT )?|^Terminal /, ''),
       )}${badge}</span>`
       el.title =
-        mode === 'gap'
-          ? `${n.name} — layanan blok ini ±${Math.round(service * 100)}% dari jam sibuk (perkiraan jadwal)`
-          : n.name
+        dep != null
+          ? `${n.name}${n.lines?.length ? ` (lin ${n.lines.join(', ')})` : ''} — ±${dep} keberangkatan terjadwal pada blok ini · ${n.scheduleSource ?? ''}`
+          : `${n.name} — layanan blok ini ±${Math.round(service * 100)}% dari jam sibuk (perkiraan jadwal)`
       return new Marker({ element: el, anchor: 'center' })
         .setLngLat([n.lon, n.lat])
         .addTo(map)
@@ -477,7 +550,20 @@ export default function SimpulMap({
     const map = mapRef.current
     if (map && readyRef.current) applyRail(map)
      
-  }, [showRail])
+  }, [showRail, showStops, region])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map && readyRef.current)
+      (map.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC)
+  }, [stopsFC])
+
+  /** Ganti wilayah studi → terbang ke pusatnya. */
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.flyTo({ center: region.center, zoom: region.zoom, duration: 900 })
+  }, [region])
 
   useEffect(() => {
     const map = mapRef.current

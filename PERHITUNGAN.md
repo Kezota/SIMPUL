@@ -1,5 +1,7 @@
 # PERHITUNGAN.md — Cara SIMPUL Menghitung
 
+> **Pembaruan 9 Sep 2026:** poin perkiraan dihapus (PRD), skor layanan kini dari data transit nyata (OSM + Gapeka + GTFS TransJakarta), wilayah studi utama Jabodetabek. Contoh & tabel hasil di bagian bawah masih dari sampel Bandung dan akan diperbarui saat data aktivitas Jabodetabek tersedia.
+
 > Dokumen ini menjelaskan **persis** apa yang dihitung aplikasi, langkah demi langkah, dengan angka bobot yang benar-benar dipakai di kode (`src/simpul/engine.ts`, `serviceProfiles.ts`, `recommend.ts`). Semua angka contoh di bagian akhir adalah **hasil nyata** dari menjalankan mesinnya atas data sample — bukan karangan.
 
 ---
@@ -32,7 +34,8 @@ Satu bukti = satu titik (lat/lon) + jam kejadian + bobot. Bobotnya:
 |---|---|---|---|
 | Struk Go | kolom `Waktu Transaksi` | **1** | Bukti transaksi beneran terjadi di situ, jam segitu |
 | Struk Go kategori E-commerce | — | **0 (dibuang)** | Belanja online tercatat di mana pun pembelinya berada — titiknya tidak menyatakan keramaian lokasi |
-| Community Maps | **cap waktu di nama file foto** (epoch ms, dikonversi ke WIB) | **0,5** | Bukti aktivitas warga, tapi bukan transaksi. Catatan: kolom jam tidak ada di data ini — kami menemukannya tersembunyi di nama file media, dan sudah diverifikasi cocok dengan cap tanggal-jam yang tercetak di fotonya |
+| **Community Maps — API MAPID kompetisi** (`POST server.mapid.io/web/competition/activities`, ditarik live per wilayah) | **"pukul …" yang ditulis surveyor** di deskripsi; kalau tidak ada, `created_at` (jam unggah) dikonversi ke WIB | **2 / 1 / 0,5** | Bobot mengikuti keterangan keramaian yang ditulis surveyor sendiri: menyebut *ramai/padat/antre* → 2, tanpa keterangan → 1, menyebut *sepi/lengang* → 0,5 (tetap pengamatan, bukan "Tidak Ada Data"). Dibaca dengan **aturan kata kunci** (`src/simpul/activityText.ts`), bukan LLM — sesuai PRD. Endpoint menolak permintaan dari browser (403 bila ada header `Origin`), jadi dipanggil lewat backend tipis: proxy Vite saat dev, Vercel Edge Function `api/activities.ts` di produksi; bila gagal, snapshot 9 Sep 2026 dipakai dan statusnya ditulis "snapshot" di topbar |
+| Community Maps — file sampel lama | cap waktu di nama file foto (epoch ms → WIB) | **0,5** | Sampel Bandung 25 titik; kolom jam tidak ada, ditemukan di nama file media dan diverifikasi cocok dengan cap di fotonya |
 | Menu Go "Ramai" | kolom `Waktu` | **3** | Pengamatan keramaian langsung oleh surveyor — bukti terkuat |
 | Menu Go "Sedang" | | **2** | |
 | Menu Go "Sepi" | | **1** | Tetap bukti tempatnya buka |
@@ -40,7 +43,9 @@ Satu bukti = satu titik (lat/lon) + jam kejadian + bobot. Bobotnya:
 
 Catatan Menu Go: sample-nya berlokasi di Depok (di luar peta Bandung), jadi titiknya **tidak digambar di peta** — perannya menyumbang "kurva jam kota" di Langkah 3 dan menjadi bahan latihan AI di versi penuh.
 
-**Hasil nyata di data sample:** 12 transaksi dipakai (3 e-commerce dibuang), 25 laporan warga semuanya berhasil diberi jam dari cap foto, 15 pengamatan Menu Go masuk kurva.
+**Hasil nyata di data sample (Bandung):** 12 transaksi dipakai (3 e-commerce dibuang), 25 laporan warga semuanya berhasil diberi jam dari cap foto, 15 pengamatan Menu Go masuk kurva.
+
+**Hasil nyata di Jabodetabek (API MAPID, 9 Sep 2026):** 1.750 laporan warga (Des 2025–Sep 2026; 1.457 di antaranya Agustus 2026), 1.748 ber-foto; 376 menyebut ramai, 98 menyebut sepi; 637 jamnya terbaca dari teks "pukul …", sisanya dari jam unggah. Puncak jam pengamatan 12–17 WIB. Perlu diingat: sebarannya mengikuti lokasi tim-tim peserta bekerja (hashtag = nama tim), bukan sampel acak se-Jabodetabek.
 
 ## Langkah 2 — Kota dibagi sel heksagon ±500 m, hari dibagi 5 blok
 
@@ -49,24 +54,14 @@ Catatan Menu Go: sample-nya berlokasi di Depok (di luar peta Bandung), jadi titi
 
 **Hasil nyata:** 204 sel terbentuk; 31 di antaranya punya pengamatan ber-jam, sisanya hanya berisi titik usaha (→ perkiraan).
 
-## Langkah 3 — Poin per sel per blok = pengamatan + perkiraan
+## Langkah 3 — Poin per sel per blok = jumlah bobot pengamatan (TANPA perkiraan)
 
-**Poin pengamatan**: jumlahkan bobot semua bukti yang jatuh di sel itu pada blok itu.
+**Poin pengamatan**: jumlahkan bobot semua bukti yang jatuh di sel itu pada blok itu. Itu saja.
 
-**Poin perkiraan** (untuk sel yang punya usaha tapi belum ada pengamatan):
-
-```
-perkiraan(sel, blok) = potensi_usaha(sel) × kurva_kota(blok) × 0,35
-```
-
-- `potensi_usaha` = jumlah bobot "wadah kegiatan" dari Properti Go di sel itu: Ruko/Retail/Restoran = 1 · Coworking = 0,8 · Kantor = 0,6 · Kos = 0,4 · Rumah = 0,15 · Gudang = 0,1 · Tanah = 0. (Logikanya: makin banyak wadah usaha, makin masuk akal ramai.)
-- `kurva_kota` = sebaran jam dari SEMUA pengamatan ber-jam, dinormalisasi. **Hasil nyata dari sample: Pagi 1,00 · Siang 0,72 · Sore 0,44 · Malam 0,28 · Larut 0,00.**
-- `0,35` = peredam, supaya perkiraan tidak pernah menenggelamkan pengamatan asli.
-
-Di peta, sel yang isinya perkiraan-saja digambar **lebih pudar** — perkiraan tidak boleh menyamar jadi pengamatan.
+Versi awal prototipe pernah menambahkan "poin perkiraan" untuk sel yang punya usaha tapi belum diamati. **Itu sudah dihapus** — PRD menyatakan eksplisit bahwa prediksi/estimasi keramaian pada kawasan tanpa data berada di luar cakupan. Sel tanpa pengamatan sekarang **selalu** "Tidak Ada Data". Jumlah titik Properti Go di sel hanya ditampilkan sebagai konteks ("potensi kawasan"), tidak pernah masuk skor.
 
 ```
-total(sel, blok) = pengamatan + perkiraan
+total(sel, blok) = pengamatan(sel, blok)
 ```
 
 ## Langkah 4 — "Ramai" = ranking, bukan angka mutlak
@@ -79,14 +74,19 @@ Jawaban untuk pertanyaan "standar ramai itu berapa?": **tidak ada angka mutlak y
 
 Kalibrasi ke angka mutlak (misal "ramai = X penumpang") menunggu data naik-turun penumpang KAI — sistem sudah menyediakan slot integrasinya.
 
-## Langkah 5 — Skor layanan per sel per blok
+## Langkah 5 — Skor layanan per sel per blok, dari data transit NYATA
 
 ```
-layanan(sel, blok) = faktor_jarak(sel) × profil_jadwal(simpul_terdekat, blok)
+rel(sel, blok)  = faktor_jarak(stasiun terdekat) × min(1, keberangkatan_stasiun(blok) ÷ P90_rel(blok))
+bus(sel, blok)  = faktor_jarak(halte terdekat)   × min(1, keberangkatan_halte(blok)   ÷ P90_bus(blok))
+layanan         = maks(rel, bus)
 ```
 
-- **faktor_jarak**: ≤1 km = 1 · 1–2 km = 0,6 · >2 km = **0** (ambang yang sama dengan analisis keterjangkauan di DATA-DAN-ANALISIS.md).
-- **profil_jadwal** per jenis simpul per blok (0–1). ⚠️ Saat ini **perkiraan kasar dari jadwal publik** (KA Lokal Bandung Raya ±37 perjalanan/hari, layanan ±04.30–20.30; jam operasi terminal). Contoh: stasiun KA → Pagi 1,0 · Siang 0,7 · Sore 1,0 · **Malam 0,3** · Larut 0. Di versi penuh diganti hitungan langsung dari Gapeka resmi (jumlah keberangkatan per blok ÷ maksimum).
+- **faktor_jarak**: ≤1 km = 1 · 1–2 km = 0,6 · >2 km = 0 (PRD: catchment 1 km dan 2 km).
+- **keberangkatan_stasiun(blok)** — Jabodetabek: dihitung dari perjalanan harian per lintas (**Gapeka 2025** untuk Bogor 392, Cikarang 281, Rangkasbitung 204; **Gapeka 2023** untuk Tangerang 124, Tanjung Priok 86, Bandara 56; MRT & LRT dari headway resmi) yang dibagi ke blok waktu memakai bobot 1/headway (jam sibuk 06–09 & 16–19 lebih berat) di dalam jam operasi resmi lintas itu. Stasiun yang dilalui beberapa lintas menjumlahkan semuanya. Stasiun + keanggotaan lintasnya dari relasi **OpenStreetMap** (129 stasiun: 92 KRL, 13 MRT, 24 LRT).
+- **keberangkatan_halte(blok)** — dari **GTFS resmi TransJakarta** (`frequencies.txt`, hari kerja): jumlah keberangkatan = lama tumpang-tindih jendela layanan dengan blok ÷ headway, dijumlahkan untuk semua trip yang lewat halte itu (7.814 halte, termasuk rute JAK/Mikrotrans = JakLingko).
+- **P90** = persentil-90 keberangkatan se-wilayah pada blok itu → normalisasi **relatif** (PRD: "penilaian bersifat relatif, bukan absolut").
+- Mode Bandung (sampel) tetap memakai profil relatif per jenis simpul, karena datanya bukan wilayah studi.
 
 ## Langkah 6 — Kesenjangan
 
@@ -94,22 +94,22 @@ Sel disebut ber-**gap** pada satu blok kalau kelasnya **RAMAI** dan skor layanan
 
 | Kondisi | Jenis gap | Artinya |
 |---|---|---|
-| RAMAI + dekat simpul (≤2 km) tapi jadwal blok itu jarang | **Gap JADWAL** (oranye di mode Kesenjangan) | "Kawasan masih hidup ketika layanan menipis" |
-| RAMAI + >2 km dari semua simpul | **Gap JANGKAUAN** (merah di mode Kesenjangan) | "Hidup tapi tidak terlayani sama sekali" |
+| RAMAI + ada stasiun/halte dalam 1 km tapi skor layanan blok itu <0,35 | **Gap JADWAL / frekuensi** (oranye) | "Kawasan masih hidup ketika layanan menipis" |
+| RAMAI + tidak ada stasiun maupun halte dalam 1 km | **Gap JANGKAUAN** (merah) | "Hidup tapi di luar jarak jalan kaki dari layanan mana pun" |
 
 **Hasil nyata di sample:** gap jadwal muncul 5 sel (semuanya blok Malam — pas dengan jadwal KA lokal yang menipis setelah 20.00); gap jangkauan 9–37 sel tergantung blok.
 
-## Langkah 7 — Rekomendasi (aturan terbuka, bukan karangan AI)
+## Langkah 7 — Kandidat berperingkat (aturan terbuka, bukan karangan AI)
 
-**Rekomendasi JADWAL** — per simpul: kalau ≥2 sel dalam 2 km masih ramai/sedang pada blok yang profil jadwalnya ≤0,35 → *"tambah frekuensi di sekitar [simpul] pada blok [X]"*, dengan jumlah sel + total poin + skor layanan sebagai angka pendukung.
+Kedua jenis kesenjangan diproses sama: sel ber-gap yang **bersebelahan** digabung jadi satu kantong (flood-fill di grid heksagon), lalu tiap kantong jadi satu kandidat dengan blok dominan, jumlah bukti, jarak ke layanan, dan skor layanan rata-rata.
 
-**Rekomendasi JANGKAUAN** — sel-sel ramai yang >2 km dari semua simpul dan **bersebelahan** digabung jadi kantong (flood-fill di grid heksagon). Kantong ≥2 sel → *"kandidat koridor feeder menuju [simpul terdekat]"*, dengan luas, jumlah titik usaha, jarak rata-rata, dan blok dominannya.
+- **Kandidat frekuensi** → *jenis kandidat: penambahan frekuensi pada blok X* (target: operator rel atau TransJakarta/JakLingko, tergantung moda mana yang dominan di situ).
+- **Kandidat jangkauan** → *jenis kandidat: rute pengumpan / halte baru menuju simpul terdekat*.
+- **Tingkat keyakinan** (PRD): **tinggi** ≥8 bukti & ≥2 sel · **sedang** ≥3 bukti · **rendah** sisanya. Kandidat berkeyakinan rendah = prioritas survey activities.
+- Peringkat = ukuran kantong + jumlah bukti (+ kepadatan usaha untuk jangkauan; + seberapa rendah layanan untuk frekuensi). Minimal 10 kandidat ditampilkan bila tersedia; kedua jenis dijamin tampil.
+- Tidak ada kandidat yang menyebut jumlah armada atau kapasitas — sesuai batasan PRD.
 
-Prioritas: kantong yang **padat usaha** di atas kantong yang hanya berisi laporan warga. Kedua jenis rekomendasi dijamin tampil (5 jangkauan + 3 jadwal teratas).
-
-**Catatan akses** (fitur nice-to-have): tiap rekomendasi mengecek pin aksesibilitas dalam 1,2 km — kalau ada titik yang dinilai tidak ramah dari foto lapangan, rekomendasinya diberi satu kalimat tambahan: *"jika layanan ditambah, siapkan juga aksesnya."*
-
-**Peran AI vs aturan** — pembagian yang disengaja: aturan menentukan **isi** (angka, lokasi, jenis usulan), AI/LLM nantinya hanya memperhalus **kalimat** dan menerjemahkan pertanyaan pengguna. AI tidak pernah boleh menulis angka sendiri — itu yang membuat halusinasi angka nyaris mustahil, dan itu jawaban kami untuk butir "validasi hasil AI" di ketentuan lomba.
+**Peran AI vs aturan** — aturan menentukan **isi** (angka, lokasi, jenis kandidat, keyakinan); LLM hanya memperhalus **kalimat alasan** dan menjawab pertanyaan lewat *tool use*. AI tidak pernah menulis angka sendiri.
 
 ---
 

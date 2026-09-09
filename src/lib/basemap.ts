@@ -4,24 +4,37 @@ import type { MapOptions } from 'maplibre-gl'
 type Style = NonNullable<MapOptions['style']>
 
 /**
- * BASEMAP.
+ * BASEMAP — MAPID MAPS (wajib menurut ketentuan lomba) dengan cadangan publik.
  *
- * ⚠️ Ketentuan B (checklist WebGIS) mewajibkan **MAPID MAPS** sebagai basemap
- * utama di versi kompetisi. Style URL + API key-nya baru didapat setelah
- * registrasi/kurasi, jadi belum bisa dipakai di prototipe ini.
+ * MAPID Maps menyediakan style vektor di
+ *   https://basemap.mapid.io/styles/<nama>/style.json?key=<API key Map Services>
+ * Nama style yang terverifikasi (9 Sep 2026): street-2d-building, basic, light,
+ * dark, satellite. Tanpa key → 401.
  *
- * Yang sudah disiapkan: begitu kamu punya style URL-nya, isi `.env.local`
+ * Konfigurasi lewat `.env.local` (di-gitignore):
+ *   VITE_MAPID_API_KEY=...            ← key dari Dashboard → Map Services → API Keys
+ *   VITE_MAPID_STYLE_URL=...          ← (opsional) style URL lengkap; mengalahkan key
  *
- *     VITE_MAPID_STYLE_URL=<style url dari MAPID MAPS>
- *
- * dan aplikasi otomatis memakainya sebagai basemap utama — tidak ada kode lain
- * yang perlu diubah. Selama env itu kosong, dipakai basemap cadangan di bawah
- * (CARTO raster, gratis & publik) HANYA untuk keperluan eksplorasi lokal.
+ * Catatan keamanan: key basemap memang dipakai di browser (seperti token Mapbox);
+ * batasi domainnya di dashboard MAPID bila fitur itu tersedia, dan pantau
+ * pemakaiannya di tab Analytics.
  */
 
 const MAPID_STYLE_URL = import.meta.env.VITE_MAPID_STYLE_URL as string | undefined
+const MAPID_API_KEY = import.meta.env.VITE_MAPID_API_KEY as string | undefined
 
-export const usingMapidBasemap = Boolean(MAPID_STYLE_URL)
+export const usingMapidBasemap = Boolean(MAPID_STYLE_URL || MAPID_API_KEY)
+
+const MAPID_STYLE: Record<BasemapVariant, string> = {
+  light: 'light',
+  dark: 'dark',
+  satellite: 'satellite',
+}
+
+const mapidStyleUrl = (variant: BasemapVariant) =>
+  MAPID_STYLE_URL && variant === 'light'
+    ? MAPID_STYLE_URL
+    : `https://basemap.mapid.io/styles/${MAPID_STYLE[variant]}/style.json?key=${MAPID_API_KEY}`
 
 const ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · © <a href="https://carto.com/attributions">CARTO</a>'
@@ -47,18 +60,11 @@ function rasterStyle(variant: 'light' | 'dark'): Style {
         attribution: ATTRIBUTION,
       },
     },
-    layers: [
-      {
-        id: 'basemap',
-        type: 'raster',
-        source: 'basemap',
-        paint: { 'raster-opacity': 1 },
-      },
-    ],
+    layers: [{ id: 'basemap', type: 'raster', source: 'basemap', paint: { 'raster-opacity': 1 } }],
   }
 }
 
-function satelliteStyle(): Style {
+function esriSatelliteStyle(): Style {
   return {
     version: 8,
     glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
@@ -80,12 +86,11 @@ function satelliteStyle(): Style {
 export type BasemapVariant = 'light' | 'dark' | 'satellite'
 
 export function getBasemapStyle(variant: BasemapVariant): Style {
-  // Satelit selalu tersedia (Esri World Imagery, gratis + atribusi) — basemap
-  // MAPID menggantikan varian terang/gelap saja.
-  if (variant === 'satellite') return satelliteStyle()
-  return MAPID_STYLE_URL ?? rasterStyle(variant)
+  if (MAPID_API_KEY || (MAPID_STYLE_URL && variant === 'light')) return mapidStyleUrl(variant)
+  if (variant === 'satellite') return esriSatelliteStyle()
+  return rasterStyle(variant)
 }
 
 export const BASEMAP_NOTE = usingMapidBasemap
-  ? 'Basemap: MAPID MAPS'
-  : 'Basemap sementara: CARTO/OSM — ganti ke MAPID MAPS via VITE_MAPID_STYLE_URL'
+  ? 'Basemap: MAPID MAPS (basemap.mapid.io)'
+  : 'Basemap sementara: CARTO/OSM — isi VITE_MAPID_API_KEY untuk MAPID MAPS'

@@ -14,7 +14,7 @@ export type DatasetId = 'community' | 'menugo' | 'strukgo' | 'propertigo'
 /** Kelas keterjangkauan terhadap simpul transit terdekat. */
 export type AccessClass = 'inti' | 'dekat' | 'sedang' | 'luar'
 
-export type NodeKind = 'stasiun' | 'terminal' | 'kcic' | 'krl'
+export type NodeKind = 'stasiun' | 'terminal' | 'kcic' | 'krl' | 'mrt' | 'lrt' | 'lrt_jabodebek'
 
 /** Wilayah studi — menentukan simpul transit mana yang relevan. */
 export type RegionId = 'bandung' | 'jabodetabek'
@@ -29,6 +29,16 @@ export interface TransitNode {
   lon: number
   /** Radius layanan untuk buffer & kolom "dalam radius", dalam meter. */
   serviceRadiusM: number
+  /** Kode lintas yang melayani simpul ini (mis. B, C, R, M) — Jabodetabek. */
+  lines?: string[]
+  /**
+   * Perkiraan jumlah keberangkatan terjadwal per blok waktu (dua arah),
+   * diturunkan dari Gapeka/GTFS. Kalau tidak ada, engine memakai profil
+   * relatif per jenis simpul (mode Bandung).
+   */
+  depByBlock?: Record<string, number>
+  /** Sumber angka jadwal — ditampilkan di UI supaya bisa diaudit. */
+  scheduleSource?: string
 }
 
 /** Satu kategori dalam palet warna sebuah dataset. */

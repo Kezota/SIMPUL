@@ -48,6 +48,9 @@ export const NODE_KIND_LABEL: Record<TransitNode['kind'], string> = {
   terminal: 'Terminal Bus',
   kcic: 'Kereta Cepat',
   krl: 'Stasiun KRL',
+  mrt: 'Stasiun MRT',
+  lrt: 'Stasiun LRT Jakarta',
+  lrt_jabodebek: 'Stasiun LRT Jabodebek',
 }
 
 export const REGION_LABEL: Record<RegionId, string> = {

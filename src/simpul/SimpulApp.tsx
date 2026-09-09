@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 
 import logoImg from '../assets/logo.jpeg'
 import type { BasemapVariant } from '../lib/basemap'
-import { buildModel } from './engine'
+import { buildModel, BUNDLED_SOURCES, REGIONS } from './engine'
+import { loadActivities, type ActivityFeed } from './mapidApi'
 import { buildRecommendations, type Recommendation } from './recommend'
 import SimpulMap, { type MapMode } from './SimpulMap'
 import TimeSlider from './TimeSlider'
 import { SimpulAssistantPanel, SimpulMethodPanel, RecPanel } from './panels'
 import type { BlockId } from './timeblocks'
+import type { RegionId } from '../lib/types'
 import type { SimpulAnswer } from './assistant'
 
 type Tab = 'rekomendasi' | 'ai' | 'metode'
@@ -33,13 +35,40 @@ function useIsMobile() {
 
 export default function SimpulApp({ onOpenExplorer }: { onOpenExplorer: () => void }) {
   // Seluruh model dihitung sekali di muka: bukti → sel×blok → kelas → gap.
-  const model = useMemo(() => buildModel(), [])
+  const [regionId, setRegionId] = useState<RegionId>('jabodetabek')
+  // Laporan warga ditarik live dari API Activities MAPID per wilayah (snapshot bila gagal).
+  const [feed, setFeed] = useState<ActivityFeed | null>(null)
+  const regionBbox = REGIONS[regionId].bbox
+  useEffect(() => {
+    const ac = new AbortController()
+    loadActivities(regionBbox, ac.signal)
+      .then((f) => setFeed(f))
+      .catch(() => {
+        /* dibatalkan karena wilayah berganti — abaikan */
+      })
+    return () => ac.abort()
+  }, [regionBbox])
+  // Feed wilayah lama tidak dipakai untuk wilayah baru; selama memuat model dibangun tanpa aktivitas.
+  const regionFeed = feed && feed.bboxKey === regionBbox.join(',') ? feed : null
+  const feedStatus = regionFeed ? regionFeed.status : 'memuat'
+  // Seluruh model dihitung ulang saat wilayah/feed berganti: bukti → sel×blok → kelas → gap.
+  const model = useMemo(
+    () =>
+      buildModel(
+        regionId,
+        regionFeed
+          ? { ...BUNDLED_SOURCES, activities: regionFeed.items, activitiesNote: regionFeed.note }
+          : BUNDLED_SOURCES,
+      ),
+    [regionId, regionFeed],
+  )
   const recs = useMemo(() => buildRecommendations(model), [model])
 
   const [block, setBlock] = useState<BlockId>('pagi')
   const [mode, setMode] = useState<MapMode>('denyut')
   const [showAccess, setShowAccess] = useState(false)
   const [showRail, setShowRail] = useState(true)
+  const [showStops, setShowStops] = useState(true)
   const [satellite, setSatellite] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [focus, setFocus] = useState<
@@ -114,6 +143,13 @@ export default function SimpulApp({ onOpenExplorer }: { onOpenExplorer: () => vo
           </div>
         </div>
         <div className="topbar-actions">
+          <span className="data-note" title={model.sources.join(' · ')}>
+            <i className={`feed-status feed-${feedStatus}`} aria-label={`Community Maps: ${feedStatus}`} />
+            {feedStatus === 'memuat'
+              ? 'memuat Community Maps…'
+              : `${model.counts.activities.toLocaleString('id-ID')} laporan warga${feedStatus === 'live' ? ' (live)' : feedStatus === 'snapshot' ? ' (snapshot)' : ''}`}{' '}
+            · {model.nodes.length} stasiun · {model.stops.length.toLocaleString('id-ID')} halte
+          </span>
           <button type="button" className="btn ghost" onClick={onOpenExplorer}>
             Eksplorasi Data
           </button>
@@ -137,6 +173,8 @@ export default function SimpulApp({ onOpenExplorer }: { onOpenExplorer: () => vo
             mode={mode}
             showAccess={showAccess}
             showRail={showRail}
+            showStops={showStops}
+            region={model.region}
             variant={variant}
             focus={focus}
             onRecClick={onRecMarkerClick}
@@ -159,6 +197,31 @@ export default function SimpulApp({ onOpenExplorer }: { onOpenExplorer: () => vo
               🚨 Kesenjangan
             </button>
             <span className="mode-sep" aria-hidden="true" />
+            <select
+              className="region-select"
+              aria-label="Wilayah studi"
+              value={regionId}
+              onChange={(e) => {
+                setRegionId(e.target.value as RegionId)
+                setActiveRecId(null)
+                setHintDismissed(true)
+              }}
+            >
+              {Object.values(REGIONS).map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+            <span className="mode-sep" aria-hidden="true" />
+            <button
+              type="button"
+              className={`icon-chip${showStops ? ' on' : ''}`}
+              onClick={() => setShowStops(!showStops)}
+              title="Halte TransJakarta & JakLingko (GTFS resmi) — klik titik untuk keberangkatan per blok"
+            >
+              🚌
+            </button>
             <button
               type="button"
               className={`icon-chip${showRail ? ' on' : ''}`}
@@ -171,7 +234,7 @@ export default function SimpulApp({ onOpenExplorer }: { onOpenExplorer: () => vo
               type="button"
               className={`icon-chip${satellite ? ' on' : ''}`}
               onClick={() => setSatellite(!satellite)}
-              title="Citra satelit (Esri World Imagery)"
+              title="Citra satelit (MAPID MAPS bila key tersedia; cadangan Esri World Imagery)"
             >
               🛰
             </button>
@@ -196,7 +259,7 @@ export default function SimpulApp({ onOpenExplorer }: { onOpenExplorer: () => vo
                 </div>
                 <small>
                   Dari jauh: permukaan panas. Perbesar untuk melihat per kawasan.
-                  Pudar = perkiraan · tanpa warna = belum ada data (<b>bukan</b> sepi)
+                  Tanpa warna = <b>Tidak Ada Data</b> (bukan sepi — tidak ada perkiraan)
                 </small>
               </>
             ) : (
@@ -208,8 +271,8 @@ export default function SimpulApp({ onOpenExplorer }: { onOpenExplorer: () => vo
                   <i style={{ background: '#f97316' }} /> Ramai, jadwal menipis
                 </div>
                 <small>
-                  Nomor di peta = nomor rekomendasi di panel. Angka di stasiun = layanan
-                  blok ini.
+                  Nomor di peta = nomor kandidat di panel. Angka di stasiun = keberangkatan
+                  terjadwal pada blok ini (Gapeka/headway resmi).
                 </small>
               </>
             )}

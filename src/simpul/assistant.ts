@@ -128,7 +128,7 @@ export function askSimpul(
     const gapTotal = summaries.reduce((a, b) => a + b.gapJadwal + b.gapJangkauan, 0)
     answer = `Dari ${model.counts.properties} titik usaha/hunian + ${
       model.counts.strukUsed
-    } transaksi + ${model.counts.communityTimed} laporan warga ber-jam: blok paling hidup se-kota adalah ${blockMeta(
+    } transaksi + ${model.counts.activities + model.counts.communityTimed} laporan warga: blok paling hidup se-kota adalah ${blockMeta(
       s.block,
     ).label} (${blockMeta(s.block).range}). Total ${gapTotal} sel×blok menunjukkan kesenjangan (ramai tapi layanan rendah). Geser slider untuk melihat kota "bernapas", atau tanya "rekomendasinya apa".`
     facts.push(

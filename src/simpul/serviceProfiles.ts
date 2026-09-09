@@ -17,6 +17,11 @@ export const SERVICE_PROFILE: Record<NodeKind, Record<BlockId, number>> = {
   krl: { pagi: 1.0, siang: 0.8, sore: 1.0, malam: 0.6, larut: 0.1 },
   kcic: { pagi: 0.8, siang: 0.8, sore: 0.8, malam: 0.5, larut: 0 },
   terminal: { pagi: 1.0, siang: 0.8, sore: 1.0, malam: 0.5, larut: 0.1 },
+  // Jenis Jabodetabek di bawah ini praktis tidak memakai profil ini — simpul
+  // Jabodetabek membawa depByBlock dari Gapeka/GTFS (lihat transitData.ts).
+  mrt: { pagi: 1.0, siang: 0.7, sore: 1.0, malam: 0.7, larut: 0.2 },
+  lrt: { pagi: 1.0, siang: 0.8, sore: 1.0, malam: 0.7, larut: 0.1 },
+  lrt_jabodebek: { pagi: 1.0, siang: 0.7, sore: 1.0, malam: 0.6, larut: 0.1 },
 }
 
 /**

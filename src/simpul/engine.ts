@@ -1,12 +1,14 @@
 /**
- * Mesin hitung SIMPUL. Alur (detail lengkap + alasan tiap angka: PERHITUNGAN.md):
+ * Mesin hitung SIMPUL. Alur (detail + alasan tiap angka: PERHITUNGAN.md):
  *
- *   1. Baca 4 dataset MAPID → "bukti kegiatan" berkoordinat + jam + bobot
+ *   1. Baca dataset MAPID → "bukti kegiatan" berkoordinat + jam + bobot
  *   2. Kelompokkan ke sel heksagon ±500 m × 5 blok waktu
- *   3. Poin pengamatan + poin perkiraan (dari sebaran usaha Properti Go ×
- *      kurva blok kota) → total poin per sel per blok
+ *   3. Poin per sel per blok = jumlah bobot pengamatan. TIDAK ADA estimasi:
+ *      sel tanpa pengamatan = "Tidak Ada Data" (sesuai PRD, out-of-scope:
+ *      prediksi keramaian pada kawasan tanpa data)
  *   4. Kelas keramaian via ranking persentil (RAMAI = 25% teratas)
- *   5. Skor layanan per sel per blok (jarak ke simpul × profil jadwalnya)
+ *   5. Skor layanan per sel per blok dari data transit NYATA:
+ *      stasiun (OSM + Gapeka) dan halte TJ/JakLingko (GTFS resmi)
  *   6. Kesenjangan: RAMAI + layanan rendah → gap jadwal / gap jangkauan
  */
 
@@ -17,13 +19,9 @@ import propertigoRaw from '../data/propertigo.json' with { type: 'json' }
 
 import { TRANSIT_NODES } from '../data/transitNodes'
 import { haversineM } from '../lib/geo'
-import type { TransitNode } from '../lib/types'
+import type { RegionId, TransitNode } from '../lib/types'
 import { hexAt, hexCenter, hexKey, type HexId } from './hexgrid'
-import {
-  distanceFactor,
-  SERVICE_LOW_THRESHOLD,
-  SERVICE_PROFILE,
-} from './serviceProfiles'
+import { distanceFactor, SERVICE_LOW_THRESHOLD, SERVICE_PROFILE } from './serviceProfiles'
 import {
   blockOfHour,
   hourFromMediaUrls,
@@ -31,6 +29,9 @@ import {
   TIME_BLOCKS,
   type BlockId,
 } from './timeblocks'
+import { loadJabodetabekNodes, PointIndex, TJ_STOPS, type BusStop } from './transitData'
+import { classifyCrowd, hourFromDescription, wibHour } from './activityText'
+import type { MapidActivity } from './mapidApi'
 
 /* ── Bobot bukti (keputusan tim — sengaja terbuka biar bisa didebat) ─────── */
 
@@ -40,16 +41,47 @@ export const WEIGHTS = {
   menuSepi: 1,
   struk: 1, // bukti transaksi beneran terjadi
   strukEcommerce: 0, // dibuang: belanja online tercatat di mana pun pembelinya
-  community: 0.5, // bukti aktivitas warga, tapi bukan transaksi
-  /** Pengali poin perkiraan supaya tidak menenggelamkan pengamatan asli. */
-  estimateScale: 0.35,
+  community: 0.5, // sampel Community Maps lama (jam dari cap foto, tanpa keterangan ramai/sepi)
+  /* Laporan warga dari API Activities MAPID — keterangan keramaian dibaca dari teks (activityText.ts). */
+  aktivitasRamai: 2, // surveyor menulis "ramai/padat/antre"
+  aktivitas: 1, // laporan tanpa keterangan keramaian
+  aktivitasSepi: 0.5, // surveyor menulis "sepi/lengang" — tetap pengamatan, bukan "tidak ada data"
 }
 
-/** Bobot "wadah kegiatan" per kategori properti — dasar poin perkiraan. */
-const PROPERTY_POTENTIAL: Record<string, number> = {
-  ruko: 1, retail: 1, 'retail fnb': 1, restoran: 1, 'coworking space': 0.8,
-  kantor: 0.6, kos: 0.4, rumah: 0.15, gudang: 0.1, tanah: 0,
+/** Ambang jangkauan jalan kaki (PRD: catchment 1 km) dan sambungan (2 km). */
+export const WALK_M = 1000
+export const FEEDER_M = 2000
+
+/* ── Wilayah studi ───────────────────────────────────────────────────────── */
+
+export interface RegionDef {
+  id: RegionId
+  label: string
+  /** [minLon, minLat, maxLon, maxLat] */
+  bbox: [number, number, number, number]
+  center: [number, number]
+  zoom: number
 }
+
+export const REGIONS: Record<RegionId, RegionDef> = {
+  jabodetabek: {
+    id: 'jabodetabek',
+    label: 'Jabodetabek',
+    bbox: [106.35, -6.75, 107.2, -5.95],
+    center: [106.82, -6.25],
+    zoom: 10.6,
+  },
+  bandung: {
+    id: 'bandung',
+    label: 'Bandung Raya (sampel)',
+    bbox: [107.35, -7.1, 107.85, -6.75],
+    center: [107.594, -6.918],
+    zoom: 11.4,
+  },
+}
+
+const inBbox = (lat: number, lon: number, b: RegionDef['bbox']) =>
+  lon >= b[0] && lon <= b[2] && lat >= b[1] && lat <= b[3]
 
 /* ── Tipe hasil ──────────────────────────────────────────────────────────── */
 
@@ -64,13 +96,17 @@ export interface Evidence {
 }
 
 export interface HexBlock {
+  /** Poin pengamatan (tidak ada komponen perkiraan lagi). */
   observed: number
-  estimated: number
   total: number
   cls: ActivityClass | null
-  /** Persen ranking 0-100 (100 = paling ramai se-kota). */
+  /** Persen ranking 0-100 (100 = paling ramai se-wilayah). */
   percentile: number
+  /** Skor layanan gabungan 0-1 (maks dari rel & bus). */
   service: number
+  /** Keberangkatan terjadwal simpul rel terdekat & halte bus terdekat pada blok ini. */
+  railDep: number
+  busDep: number
   gap: GapKind
 }
 
@@ -80,33 +116,41 @@ export interface HexCell {
   center: { lat: number; lon: number }
   blocks: Record<BlockId, HexBlock>
   evidence: Evidence[]
+  /** Titik usaha/hunian Properti Go di sel — konteks, BUKAN skor. */
   propertyCount: number
-  propertyPotential: number
   nearestNode: TransitNode
   nearestNodeDistM: number
-  /** Ada minimal satu pengamatan ber-jam (bukan cuma perkiraan). */
+  nearestStop: BusStop | null
+  nearestStopDistM: number
+  /** Jarak ke layanan transit terdekat apa pun (rel atau bus). */
+  nearestTransitM: number
   hasObservation: boolean
 }
 
-export interface BlockCurvePoint {
-  block: BlockId
-  observedShare: number
-}
-
 export interface SimpulModel {
+  region: RegionDef
   cells: HexCell[]
   cellByKey: Map<string, HexCell>
   nodes: TransitNode[]
-  /** Kurva blok kota: sebaran pengamatan ber-jam per blok (untuk perkiraan). */
-  cityCurve: BlockCurvePoint[]
+  stops: BusStop[]
+  /** Acuan normalisasi keberangkatan per blok (persentil-90 se-wilayah). */
+  refDep: { rail: Record<BlockId, number>; bus: Record<BlockId, number> }
   counts: {
     strukUsed: number
     strukDropped: number
     communityTimed: number
     communityUntimed: number
-    menuPooled: number
+    /** Laporan warga dari API Activities MAPID (live/snapshot). */
+    activities: number
+    activitiesRamai: number
+    activitiesSepi: number
+    /** Berapa di antaranya jamnya dibaca dari teks "pukul …" (sisanya jam unggah WIB). */
+    activitiesHourFromText: number
+    menuUsed: number
     properties: number
+    outsideRegion: number
   }
+  sources: string[]
 }
 
 /* ── Pembacaan data mentah ───────────────────────────────────────────────── */
@@ -118,7 +162,7 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : null
 }
 
-interface TimedPoint {
+export interface TimedPoint {
   lat: number
   lon: number
   hour: number | null
@@ -127,19 +171,18 @@ interface TimedPoint {
   label: string
 }
 
-function readStruk(): { points: TimedPoint[]; used: number; dropped: number } {
+function readStruk(fc: GeoJSON.FeatureCollection) {
   const points: TimedPoint[] = []
   let used = 0
   let dropped = 0
-  for (const f of (strukgoRaw as GeoJSON.FeatureCollection).features) {
+  for (const f of fc.features) {
     const p = (f.properties ?? {}) as Props
     const lat = num(p['Latitude'])
     const lon = num(p['Longitude'])
     if (lat == null || lon == null) continue
-    const kategori = str(p['Kategori Tempat']).toLowerCase()
-    if (kategori === 'e-commerce') {
+    if (str(p['Kategori Tempat']).toLowerCase() === 'e-commerce') {
       dropped++
-      continue // bobot 0: titik e-commerce tidak menyatakan keramaian lokasi
+      continue
     }
     used++
     points.push({
@@ -153,11 +196,11 @@ function readStruk(): { points: TimedPoint[]; used: number; dropped: number } {
   return { points, used, dropped }
 }
 
-function readCommunity(): { points: TimedPoint[]; timed: number; untimed: number } {
+function readCommunity(fc: GeoJSON.FeatureCollection) {
   const points: TimedPoint[] = []
   let timed = 0
   let untimed = 0
-  for (const f of (communityRaw as GeoJSON.FeatureCollection).features) {
+  for (const f of fc.features) {
     const p = (f.properties ?? {}) as Props
     const lat = num(p.latitude)
     const lon = num(p.longitude)
@@ -165,84 +208,162 @@ function readCommunity(): { points: TimedPoint[]; timed: number; untimed: number
     const hour = hourFromMediaUrls(p.medias_all) ?? hourFromMediaUrls(p.images)
     if (hour == null) untimed++
     else timed++
-    points.push({
-      lat, lon, hour,
-      weight: WEIGHTS.community,
-      kind: 'warga',
-      label: str(p.title) || 'Laporan warga',
-    })
+    points.push({ lat, lon, hour, weight: WEIGHTS.community, kind: 'warga', label: str(p.title) || 'Laporan warga' })
   }
   return { points, timed, untimed }
 }
 
+/** Menu Go: pengamatan keramaian langsung — jadi bukti ber-bobot di petanya sendiri. */
 /**
- * Menu Go berada di Depok — di luar peta Bandung. Perannya di sini: menyumbang
- * "kurva blok kota" (jam berapa kegiatan ekonomi biasanya terjadi) yang dipakai
- * untuk poin perkiraan. Label ramai/sedang/sepi-nya jadi bobot kurva.
+ * Laporan warga dari API Activities MAPID. Jam = "pukul …" yang ditulis
+ * surveyor kalau ada, kalau tidak jam unggah (WIB). Bobot mengikuti
+ * keterangan keramaian yang ditulis surveyor (aturan kata kunci, bukan LLM).
  */
-function readMenuForCurve(): { hour: number; weight: number }[] {
-  const out: { hour: number; weight: number }[] = []
-  for (const f of (menugoRaw as GeoJSON.FeatureCollection).features) {
+function readActivities(list: MapidActivity[]) {
+  const points: TimedPoint[] = []
+  let ramai = 0
+  let sepi = 0
+  let hourFromText = 0
+  for (const a of list) {
+    const text = `${a.title} ${a.description}`
+    const crowd = classifyCrowd(text)
+    if (crowd === 'ramai') ramai++
+    else if (crowd === 'sepi') sepi++
+    const textHour = hourFromDescription(a.description)
+    if (textHour != null) hourFromText++
+    points.push({
+      lat: a.lat,
+      lon: a.lon,
+      hour: textHour ?? wibHour(a.createdAt),
+      weight:
+        crowd === 'ramai' ? WEIGHTS.aktivitasRamai : crowd === 'sepi' ? WEIGHTS.aktivitasSepi : WEIGHTS.aktivitas,
+      kind: 'warga',
+      label: a.title || 'Laporan warga',
+    })
+  }
+  return { points, ramai, sepi, hourFromText }
+}
+
+function readMenu(fc: GeoJSON.FeatureCollection) {
+  const points: TimedPoint[] = []
+  for (const f of fc.features) {
     const p = (f.properties ?? {}) as Props
-    const hour = hourFromTimeString(p['Waktu'])
-    if (hour == null) continue
-    const kondisi = str(p['Bagaimana Kondisi Pembeli Saat Kunjungan Dilakukan?'])
-      .toLowerCase()
+    const lat = num(p['Latitude'])
+    const lon = num(p['Longitude'])
+    if (lat == null || lon == null) continue
+    const kondisi = str(p['Bagaimana Kondisi Pembeli Saat Kunjungan Dilakukan?']).toLowerCase()
     const weight = kondisi.startsWith('ramai')
       ? WEIGHTS.menuRamai
       : kondisi.startsWith('sepi')
         ? WEIGHTS.menuSepi
         : WEIGHTS.menuSedang
-    out.push({ hour, weight })
+    points.push({
+      lat, lon,
+      hour: hourFromTimeString(p['Waktu']),
+      weight,
+      kind: 'menu',
+      label: `${str(p['Nama Tempat Makan']) || 'Tempat makan'} (${kondisi.split(' ')[0] || 'sedang'})`,
+    })
+  }
+  return { points }
+}
+
+function readProperties(fc: GeoJSON.FeatureCollection) {
+  const out: { lat: number; lon: number }[] = []
+  for (const f of fc.features) {
+    const p = (f.properties ?? {}) as Props
+    const lat = num(p['Latitude'])
+    const lon = num(p['Longitude'])
+    if (lat != null && lon != null) out.push({ lat, lon })
   }
   return out
 }
 
-function readProperties(): { lat: number; lon: number; potential: number }[] {
-  const out: { lat: number; lon: number; potential: number }[] = []
-  for (const f of (propertigoRaw as GeoJSON.FeatureCollection).features) {
-    const p = (f.properties ?? {}) as Props
-    const lat = num(p['Latitude'])
-    const lon = num(p['Longitude'])
-    if (lat == null || lon == null) continue
-    const kategori = str(p['Kategori Properti']).toLowerCase()
-    const matched = Object.entries(PROPERTY_POTENTIAL).find(([k]) =>
-      kategori.startsWith(k),
-    )
-    out.push({ lat, lon, potential: matched ? matched[1] : 0.3 })
-  }
-  return out
+/** Sumber data aktivitas — default: sampel resmi kompetisi yang dibundel. */
+export interface ActivitySources {
+  struk: GeoJSON.FeatureCollection
+  community: GeoJSON.FeatureCollection
+  menu: GeoJSON.FeatureCollection
+  properti: GeoJSON.FeatureCollection
+  label: string
+  /** Laporan warga dari API Activities MAPID (diisi SimpulApp setelah fetch). */
+  activities?: MapidActivity[]
+  activitiesNote?: string
+}
+
+export const BUNDLED_SOURCES: ActivitySources = {
+  struk: strukgoRaw as GeoJSON.FeatureCollection,
+  community: communityRaw as GeoJSON.FeatureCollection,
+  menu: menugoRaw as GeoJSON.FeatureCollection,
+  properti: propertigoRaw as GeoJSON.FeatureCollection,
+  label: 'Sampel resmi kompetisi (file GeoJSON panitia)',
 }
 
 /* ── Perakitan model ─────────────────────────────────────────────────────── */
 
-const BANDUNG_NODES = TRANSIT_NODES.filter((n) => n.region === 'bandung')
-
 function emptyBlocks(): Record<BlockId, HexBlock> {
   const mk = (): HexBlock => ({
-    observed: 0, estimated: 0, total: 0, cls: null, percentile: 0,
-    service: 0, gap: null,
+    observed: 0, total: 0, cls: null, percentile: 0, service: 0, railDep: 0, busDep: 0, gap: null,
   })
   return { pagi: mk(), siang: mk(), sore: mk(), malam: mk(), larut: mk() }
 }
 
-export function buildModel(): SimpulModel {
-  const struk = readStruk()
-  const community = readCommunity()
-  const menuCurveObs = readMenuForCurve()
-  const properties = readProperties()
+function percentile(sorted: number[], q: number) {
+  if (!sorted.length) return 0
+  const i = Math.min(sorted.length - 1, Math.floor(q * (sorted.length - 1)))
+  return sorted[i]
+}
 
-  /* Kurva blok kota: gabungan semua pengamatan ber-jam (struk + menu). */
-  const curveRaw: Record<BlockId, number> = { pagi: 0, siang: 0, sore: 0, malam: 0, larut: 0 }
-  for (const o of menuCurveObs) curveRaw[blockOfHour(o.hour)] += o.weight
-  for (const p of struk.points) {
-    if (p.hour != null) curveRaw[blockOfHour(p.hour)] += p.weight
+export function buildModel(
+  regionId: RegionId = 'jabodetabek',
+  src: ActivitySources = BUNDLED_SOURCES,
+): SimpulModel {
+  const region = REGIONS[regionId]
+  const sources = [src.label]
+
+  /* Simpul transit sesuai wilayah. */
+  const nodes: TransitNode[] =
+    regionId === 'jabodetabek'
+      ? loadJabodetabekNodes()
+      : TRANSIT_NODES.filter((n) => n.region === 'bandung')
+  const stops: BusStop[] =
+    regionId === 'jabodetabek'
+      ? TJ_STOPS.filter((s) => inBbox(s.lat, s.lon, region.bbox))
+      : []
+  const nodeIndex = new PointIndex(nodes)
+  const stopIndex = new PointIndex(stops)
+  if (regionId === 'jabodetabek') {
+    sources.push(
+      'Stasiun & lintas: OpenStreetMap (9 Sep 2026)',
+      'Perjalanan KRL: Gapeka 2025 / 2023; MRT & LRT: headway resmi operator',
+      'Halte & keberangkatan TJ/JakLingko: GTFS resmi TransJakarta (24 Jul 2026)',
+    )
+  } else {
+    sources.push('Simpul Bandung: perkiraan manual; profil jadwal: perkiraan (mode sampel)')
   }
-  const curveMax = Math.max(1e-9, ...Object.values(curveRaw))
-  const cityCurve: BlockCurvePoint[] = TIME_BLOCKS.map((b) => ({
-    block: b.id,
-    observedShare: curveRaw[b.id] / curveMax,
-  }))
+
+  /* Acuan normalisasi keberangkatan = persentil-90 se-wilayah per blok. */
+  const refDep = {
+    rail: {} as Record<BlockId, number>,
+    bus: {} as Record<BlockId, number>,
+  }
+  for (const b of TIME_BLOCKS) {
+    const r = nodes.map((n) => n.depByBlock?.[b.id] ?? 0).filter((v) => v > 0).sort((a, c) => a - c)
+    const s = stops.map((st) => st.dep[b.id]).filter((v) => v > 0).sort((a, c) => a - c)
+    refDep.rail[b.id] = percentile(r, 0.9) || 1
+    refDep.bus[b.id] = percentile(s, 0.9) || 1
+  }
+
+  /* Baca bukti kegiatan, saring ke wilayah studi. */
+  const struk = readStruk(src.struk)
+  const community = readCommunity(src.community)
+  const menu = readMenu(src.menu)
+  const activities = readActivities(src.activities ?? [])
+  if (src.activitiesNote) sources.push(src.activitiesNote)
+  const properties = readProperties(src.properti)
+  const allPoints = [...struk.points, ...community.points, ...menu.points, ...activities.points]
+  const inRegion = allPoints.filter((p) => inBbox(p.lat, p.lon, region.bbox))
+  const outsideRegion = allPoints.length - inRegion.length
 
   /* Sel heksagon. */
   const cellMap = new Map<string, HexCell>()
@@ -252,23 +373,20 @@ export function buildModel(): SimpulModel {
     let cell = cellMap.get(key)
     if (!cell) {
       const center = hexCenter(id)
-      let nearest = BANDUNG_NODES[0]
-      let nearestD = Infinity
-      for (const n of BANDUNG_NODES) {
-        const d = haversineM(center.lat, center.lon, n.lat, n.lon)
-        if (d < nearestD) {
-          nearestD = d
-          nearest = n
-        }
-      }
+      const nn = nodeIndex.nearest(center.lat, center.lon, 30000)
+      const nearest = nn?.item ?? nodes[0]
+      const nearestD = nn ? nn.distM : haversineM(center.lat, center.lon, nodes[0].lat, nodes[0].lon)
+      const ns = stopIndex.size ? stopIndex.nearest(center.lat, center.lon, 5000) : null
       cell = {
         id, key, center,
         blocks: emptyBlocks(),
         evidence: [],
         propertyCount: 0,
-        propertyPotential: 0,
         nearestNode: nearest,
         nearestNodeDistM: Math.round(nearestD),
+        nearestStop: ns?.item ?? null,
+        nearestStopDistM: ns ? Math.round(ns.distM) : Infinity,
+        nearestTransitM: Math.round(Math.min(nearestD, ns ? ns.distM : Infinity)),
         hasObservation: false,
       }
       cellMap.set(key, cell)
@@ -277,33 +395,25 @@ export function buildModel(): SimpulModel {
   }
 
   /* 1) Pengamatan ber-jam masuk ke bloknya; tanpa jam → dibagi rata tipis. */
-  for (const p of [...struk.points, ...community.points]) {
+  for (const p of inRegion) {
     const cell = getCell(p.lat, p.lon)
     cell.evidence.push({ kind: p.kind, label: p.label, hour: p.hour, weight: p.weight })
-    if (p.hour != null) {
-      cell.blocks[blockOfHour(p.hour)].observed += p.weight
-      cell.hasObservation = true
-    } else {
-      for (const b of TIME_BLOCKS) cell.blocks[b.id].observed += p.weight / TIME_BLOCKS.length
-    }
+    if (p.hour != null) cell.blocks[blockOfHour(p.hour)].observed += p.weight
+    else for (const b of TIME_BLOCKS) cell.blocks[b.id].observed += p.weight / TIME_BLOCKS.length
+    cell.hasObservation = true
   }
 
-  /* 2) Properti → potensi + poin perkiraan mengikuti kurva kota. */
+  /* 2) Properti Go → konteks potensi kawasan (jumlah titik), bukan skor. */
+  let propInRegion = 0
   for (const pr of properties) {
-    const cell = getCell(pr.lat, pr.lon)
-    cell.propertyCount++
-    cell.propertyPotential += pr.potential
+    if (!inBbox(pr.lat, pr.lon, region.bbox)) continue
+    propInRegion++
+    getCell(pr.lat, pr.lon).propertyCount++
   }
-  for (const cell of cellMap.values()) {
-    for (const b of TIME_BLOCKS) {
-      const share = cityCurve.find((c) => c.block === b.id)!.observedShare
-      cell.blocks[b.id].estimated =
-        cell.propertyPotential * share * WEIGHTS.estimateScale
-      cell.blocks[b.id].total = cell.blocks[b.id].observed + cell.blocks[b.id].estimated
-    }
-  }
+  for (const cell of cellMap.values())
+    for (const b of TIME_BLOCKS) cell.blocks[b.id].total = cell.blocks[b.id].observed
 
-  /* 3) Kelas keramaian: ranking persentil atas semua (sel × blok) dgn total>0. */
+  /* 3) Kelas keramaian: ranking persentil atas semua (sel × blok) dengan pengamatan. */
   const values: number[] = []
   for (const cell of cellMap.values())
     for (const b of TIME_BLOCKS) {
@@ -325,34 +435,53 @@ export function buildModel(): SimpulModel {
 
   /* 4) Layanan + kesenjangan. */
   for (const cell of cellMap.values()) {
-    const dFactor = distanceFactor(cell.nearestNodeDistM)
+    const fRail = distanceFactor(cell.nearestNodeDistM)
+    const fBus = distanceFactor(cell.nearestStopDistM)
     for (const b of TIME_BLOCKS) {
       const hb = cell.blocks[b.id]
       if (hb.total > 0) {
         hb.percentile = percentileOf(hb.total)
         hb.cls = hb.percentile >= 75 ? 'ramai' : hb.percentile >= 50 ? 'sedang' : 'sepi'
       }
-      hb.service = dFactor * SERVICE_PROFILE[cell.nearestNode.kind][b.id]
+      // Rel: keberangkatan nyata (Jabodetabek) atau profil relatif (Bandung).
+      const railDep = cell.nearestNode.depByBlock?.[b.id]
+      const railScore =
+        railDep != null
+          ? fRail * Math.min(1, railDep / refDep.rail[b.id])
+          : fRail * SERVICE_PROFILE[cell.nearestNode.kind][b.id]
+      const busDep = cell.nearestStop?.dep[b.id] ?? 0
+      const busScore = fBus * Math.min(1, busDep / refDep.bus[b.id])
+      hb.railDep = railDep ?? 0
+      hb.busDep = busDep
+      hb.service = Math.max(railScore, busScore)
       if (hb.cls === 'ramai' && hb.service < SERVICE_LOW_THRESHOLD) {
-        hb.gap = dFactor === 0 ? 'jangkauan' : 'jadwal'
+        // Jangkauan: tidak ada layanan apa pun dalam jarak jalan kaki (PRD: 1 km).
+        hb.gap = cell.nearestTransitM > WALK_M ? 'jangkauan' : 'jadwal'
       }
     }
   }
 
-  const cells = [...cellMap.values()]
   return {
-    cells,
+    region,
+    cells: [...cellMap.values()],
     cellByKey: cellMap,
-    nodes: BANDUNG_NODES,
-    cityCurve,
+    nodes,
+    stops,
+    refDep,
     counts: {
       strukUsed: struk.used,
       strukDropped: struk.dropped,
       communityTimed: community.timed,
       communityUntimed: community.untimed,
-      menuPooled: menuCurveObs.length,
-      properties: properties.length,
+      activities: activities.points.length,
+      activitiesRamai: activities.ramai,
+      activitiesSepi: activities.sepi,
+      activitiesHourFromText: activities.hourFromText,
+      menuUsed: menu.points.length,
+      properties: propInRegion,
+      outsideRegion,
     },
+    sources,
   }
 }
 

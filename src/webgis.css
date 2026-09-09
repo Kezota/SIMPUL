@@ -105,6 +105,20 @@ body {
   color: var(--muted);
   white-space: nowrap;
 }
+.feed-status {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: 1px;
+  background: #94a3b8;
+}
+.feed-live { background: #16a34a; box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18); }
+.feed-snapshot { background: #d97706; }
+.feed-kosong { background: #dc2626; }
+.feed-memuat { background: #94a3b8; animation: feed-pulse 1s ease-in-out infinite; }
+@keyframes feed-pulse { 50% { opacity: 0.3; } }
 
 /* ── Layout ───────────────────────────────────────────────────────────────── */
 .layout {
@@ -1888,3 +1902,47 @@ body {
 .rec-card .rec-access {
   margin: 6px 12px 0;
 }
+
+/* ── Data nyata: wilayah, keyakinan, halte ────────────────────────────────── */
+.region-select {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 8px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  max-width: 190px;
+}
+
+.conf {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.conf-tinggi { background: #dcfce7; color: #166534; }
+.conf-sedang { background: #fef3c7; color: #92400e; }
+.conf-rendah { background: #fee2e2; color: #991b1b; }
+
+.app[data-theme='dark'] .conf-tinggi { background: #052e16; color: #86efac; }
+.app[data-theme='dark'] .conf-sedang { background: #451a03; color: #fcd34d; }
+.app[data-theme='dark'] .conf-rendah { background: #450a0a; color: #fca5a5; }
+
+.simpul-node-mrt .simpul-node-dot { background: #1d4ed8; border-radius: 50%; transform: none; }
+.simpul-node-lrt .simpul-node-dot,
+.simpul-node-lrt_jabodebek .simpul-node-dot { background: #7c3aed; border-radius: 50%; transform: none; }
+.simpul-node-krl .simpul-node-dot { background: #dc2626; }
+
+
+/* Label simpul: sembunyikan saat zoom jauh, kecilkan saat sedang */
+.map-canvas[data-zoom='far'] .simpul-node-label { display: none; }
+.map-canvas[data-zoom='mid'] .simpul-node-label { font-size: 9.5px; padding: 0 4px; }
+.map-canvas[data-zoom='far'] .simpul-node-dot { width: 9px; height: 9px; }
