@@ -1,8 +1,8 @@
 # PERHITUNGAN.md — Cara SIMPUL Menghitung
 
-> **Pembaruan 9 Sep 2026:** poin perkiraan dihapus (PRD), skor layanan kini dari data transit nyata (OSM + Gapeka + GTFS TransJakarta), wilayah studi utama Jabodetabek. Contoh & tabel hasil di bagian bawah masih dari sampel Bandung dan akan diperbarui saat data aktivitas Jabodetabek tersedia.
+> **Pembaruan 9 Sep 2026:** poin perkiraan dihapus (PRD), bukti kegiatan kini laporan warga Community Maps live dari API MAPID, skor layanan dari data transit nyata (OSM + Gapeka + GTFS TransJakarta), wilayah studi Jabodetabek saja (sampel Bandung dihapus). Versi bahasa sederhana: [CARA-KERJA.md](CARA-KERJA.md).
 
-> Dokumen ini menjelaskan **persis** apa yang dihitung aplikasi, langkah demi langkah, dengan angka bobot yang benar-benar dipakai di kode (`src/simpul/engine.ts`, `serviceProfiles.ts`, `recommend.ts`). Semua angka contoh di bagian akhir adalah **hasil nyata** dari menjalankan mesinnya atas data sample — bukan karangan.
+> Dokumen ini menjelaskan **persis** apa yang dihitung aplikasi, langkah demi langkah, dengan angka bobot yang benar-benar dipakai di kode (`src/lib/engine.ts`, `serviceProfiles.ts`, `recommend.ts`). Semua angka contoh di bagian akhir adalah **hasil nyata** dari menjalankan mesinnya atas data sample — bukan karangan.
 
 ---
 
@@ -28,22 +28,12 @@
 
 ## Langkah 1 — Setiap baris data jadi "bukti kegiatan"
 
-Satu bukti = satu titik (lat/lon) + jam kejadian + bobot. Bobotnya:
+Satu bukti = satu titik (lat/lon) + jam kejadian + bobot. Sumber bukti saat ini satu: laporan warga Community Maps dari API MAPID. Struk Go / Menu Go / Properti Go akan masuk sebagai baris tambahan di tabel ini begitu endpoint *Missions* tersedia (rencana bobot: transaksi 1, Menu Go ramai/sedang/sepi 3/2/1, Properti Go hanya konteks).
 
 | Sumber | Jam diambil dari | Bobot | Alasan |
 |---|---|---|---|
-| Struk Go | kolom `Waktu Transaksi` | **1** | Bukti transaksi beneran terjadi di situ, jam segitu |
-| Struk Go kategori E-commerce | — | **0 (dibuang)** | Belanja online tercatat di mana pun pembelinya berada — titiknya tidak menyatakan keramaian lokasi |
-| **Community Maps — API MAPID kompetisi** (`POST server.mapid.io/web/competition/activities`, ditarik live per wilayah) | **"pukul …" yang ditulis surveyor** di deskripsi; kalau tidak ada, `created_at` (jam unggah) dikonversi ke WIB | **2 / 1 / 0,5** | Bobot mengikuti keterangan keramaian yang ditulis surveyor sendiri: menyebut *ramai/padat/antre* → 2, tanpa keterangan → 1, menyebut *sepi/lengang* → 0,5 (tetap pengamatan, bukan "Tidak Ada Data"). Dibaca dengan **aturan kata kunci** (`src/simpul/activityText.ts`), bukan LLM — sesuai PRD. Endpoint menolak permintaan dari browser (403 bila ada header `Origin`), jadi dipanggil lewat backend tipis: proxy Vite saat dev, Vercel Edge Function `api/activities.ts` di produksi; bila gagal, snapshot 9 Sep 2026 dipakai dan statusnya ditulis "snapshot" di topbar |
-| Community Maps — file sampel lama | cap waktu di nama file foto (epoch ms → WIB) | **0,5** | Sampel Bandung 25 titik; kolom jam tidak ada, ditemukan di nama file media dan diverifikasi cocok dengan cap di fotonya |
-| Menu Go "Ramai" | kolom `Waktu` | **3** | Pengamatan keramaian langsung oleh surveyor — bukti terkuat |
-| Menu Go "Sedang" | | **2** | |
-| Menu Go "Sepi" | | **1** | Tetap bukti tempatnya buka |
-| Properti Go | tidak punya jam | — | Tidak jadi bukti ber-jam; perannya di Langkah 3 |
+| **Community Maps — API MAPID kompetisi** (`POST server.mapid.io/web/competition/activities`, ditarik live per wilayah) | **"pukul …" yang ditulis surveyor** di deskripsi; kalau tidak ada, `created_at` (jam unggah) dikonversi ke WIB | **2 / 1 / 0,5** | Bobot mengikuti keterangan keramaian yang ditulis surveyor sendiri: menyebut *ramai/padat/antre* → 2, tanpa keterangan → 1, menyebut *sepi/lengang* → 0,5 (tetap pengamatan, bukan "Tidak Ada Data"). Dibaca dengan **aturan kata kunci** (`src/lib/activityText.ts`), bukan LLM — sesuai PRD. Endpoint menolak permintaan dari browser (403 bila ada header `Origin`), jadi dipanggil lewat backend tipis: proxy Vite saat dev, Vercel Edge Function `api/activities.ts` di produksi; bila gagal, snapshot 9 Sep 2026 dipakai dan statusnya ditulis "snapshot" di topbar |
 
-Catatan Menu Go: sample-nya berlokasi di Depok (di luar peta Bandung), jadi titiknya **tidak digambar di peta** — perannya menyumbang "kurva jam kota" di Langkah 3 dan menjadi bahan latihan AI di versi penuh.
-
-**Hasil nyata di data sample (Bandung):** 12 transaksi dipakai (3 e-commerce dibuang), 25 laporan warga semuanya berhasil diberi jam dari cap foto, 15 pengamatan Menu Go masuk kurva.
 
 **Hasil nyata di Jabodetabek (API MAPID, 9 Sep 2026):** 1.750 laporan warga (Des 2025–Sep 2026; 1.457 di antaranya Agustus 2026), 1.748 ber-foto; 376 menyebut ramai, 98 menyebut sepi; 637 jamnya terbaca dari teks "pukul …", sisanya dari jam unggah. Puncak jam pengamatan 12–17 WIB. Perlu diingat: sebarannya mengikuti lokasi tim-tim peserta bekerja (hashtag = nama tim), bukan sampel acak se-Jabodetabek.
 
@@ -86,7 +76,6 @@ layanan         = maks(rel, bus)
 - **keberangkatan_stasiun(blok)** — Jabodetabek: dihitung dari perjalanan harian per lintas (**Gapeka 2025** untuk Bogor 392, Cikarang 281, Rangkasbitung 204; **Gapeka 2023** untuk Tangerang 124, Tanjung Priok 86, Bandara 56; MRT & LRT dari headway resmi) yang dibagi ke blok waktu memakai bobot 1/headway (jam sibuk 06–09 & 16–19 lebih berat) di dalam jam operasi resmi lintas itu. Stasiun yang dilalui beberapa lintas menjumlahkan semuanya. Stasiun + keanggotaan lintasnya dari relasi **OpenStreetMap** (129 stasiun: 92 KRL, 13 MRT, 24 LRT).
 - **keberangkatan_halte(blok)** — dari **GTFS resmi TransJakarta** (`frequencies.txt`, hari kerja): jumlah keberangkatan = lama tumpang-tindih jendela layanan dengan blok ÷ headway, dijumlahkan untuk semua trip yang lewat halte itu (7.814 halte, termasuk rute JAK/Mikrotrans = JakLingko).
 - **P90** = persentil-90 keberangkatan se-wilayah pada blok itu → normalisasi **relatif** (PRD: "penilaian bersifat relatif, bukan absolut").
-- Mode Bandung (sampel) tetap memakai profil relatif per jenis simpul, karena datanya bukan wilayah studi.
 
 ## Langkah 6 — Kesenjangan
 
@@ -113,39 +102,40 @@ Kedua jenis kesenjangan diproses sama: sel ber-gap yang **bersebelahan** digabun
 
 ---
 
-## Contoh nyata dari data sample (bisa dicek di aplikasi)
+## Contoh nyata (data live API MAPID, 9 Sep 2026)
 
-Sel `-5,-13` — kawasan arah Kutawaringin, barat daya Bandung:
+Kandidat #1 di aplikasi — kantong dua sel arah **Stasiun MRT Lebak Bulus**:
 
 | Hal | Nilai | Dari mana |
 |---|---|---|
-| Bukti | 2 struk transaksi, jam 18 & 19 | Struk Go |
-| Poin blok Malam | 1 + 1 = **2,0** (perkiraan 0 — tidak ada properti tercatat di sel ini) | Langkah 1+3 |
-| Ranking | persentil **98** se-kota → kelas **RAMAI** | Langkah 4 |
-| Simpul terdekat | Terminal Leuwipanjang, **7,3 km** → faktor jarak 0 | Langkah 5 |
-| Skor layanan | 0 × profil = **0** | Langkah 5 |
-| Status | **GAP JANGKAUAN** (merah di mode Kesenjangan) | Langkah 6 |
+| Bukti | 13 laporan warga di 2 sel bersebelahan | Langkah 1 |
+| Blok dominan | Sore (14–18) — poin terbesar di antara blok ber-gap | Langkah 2–3 |
+| Ranking | persentil ≥ 75 → kelas **RAMAI** | Langkah 4 |
+| Layanan terdekat | rata-rata **1,5 km** → faktor jarak 0,6; keberangkatan × 0,6 masih < 0,35 | Langkah 5 |
+| Status | **GAP JANGKAUAN** (> 1 km dari stasiun/halte mana pun) | Langkah 6 |
+| Keyakinan | **tinggi** (≥ 8 laporan di ≥ 2 sel) | Langkah 7 |
 
-Dua transaksi malam hari, 7 km dari terminal terdekat — sel ini otomatis tersorot dan masuk bahan rekomendasi feeder. Dengan data penuh, bukti seperti ini menebal dari 2 titik jadi ratusan.
+Bacaan per bagian kartunya ada di [CARA-KERJA.md §5](CARA-KERJA.md).
 
 ---
 
-## Ringkasan hasil di data sample (dihitung mesin, 26 Juli 2026)
+## Ringkasan hasil (dihitung mesin dari 1.750 laporan, 9 Sep 2026)
 
-| Blok | Sel aktif | RAMAI | Gap jadwal | Gap jangkauan |
-|---|---|---|---|---|
-| Pagi 06–10 | 182 | 76 | 0 | 37 |
-| Siang 10–14 | 178 | 61 | 0 | 25 |
-| Sore 14–18 | 175 | 29 | 0 | 14 |
-| Malam 18–22 | 177 | 15 | **5** | 9 |
-| Larut 22–06 | 0 | 0 | 0 | 0 |
+| Blok | Poin kegiatan |
+|---|---|
+| Pagi 06–10 | 153 |
+| Siang 10–14 | 571 |
+| Sore 14–18 | 860 |
+| Malam 18–22 | 345 |
+| Larut 22–06 | 182 |
 
-Bacaan cepatnya: kurva kota condong ke pagi (bias jam surveyor — diakui), gap jadwal terkonsentrasi di blok Malam (persis saat jadwal KA lokal menipis), dan blok Larut jujur kosong karena memang belum ada pengamatan.
+Kandidat: 6–12 kartu (bervariasi mengikuti data live). Kurva memuncak sore karena jam surveyor bekerja memuncak 12–17 WIB — bias yang diakui di bawah.
 
 ## Batasan (jangan disembunyikan di proposal)
 
-1. **Data sample kecil** — 12 transaksi + 25 laporan. Ini demo METODE; data penuh via API setelah lolos 50 besar.
-2. **Jam yang terekam = jam surveyor bekerja**, bukan jam kota sebenarnya → kurva bias ke pagi-siang. Survey activities diarahkan ke jam yang bolong.
-3. **Profil jadwal masih perkiraan** → diganti Gapeka resmi.
-4. **Bukan prediksi penumpang** — peta sisi permintaan kawasan vs sisi layanan. Data penumpang = slot kalibrasi.
-5. Semua bobot (1 / 0,5 / 3-2-1 / 0,35 / persentil 75) adalah **keputusan tim yang ditulis terbuka** supaya bisa didebat dan diuji sensitivitasnya — bukan angka wahyu.
+1. **Sebaran laporan mengikuti lokasi surveyor** (sebagian besar Agustus 2026, tim-tim peserta), bukan sampel acak se-Jabodetabek. Kawasan tanpa laporan = "Tidak Ada Data", bukan sepi.
+2. **Jam yang terekam = jam surveyor bekerja** (puncak 12–17 WIB) → blok pagi & larut tipis. Survey activities diarahkan ke jam yang bolong.
+3. **Timetable KRL per stasiun belum terbuka** → total trip lintas (Gapeka) dibagi ke blok dengan bobot headway. Headway GTFS TransJakarta hampir rata sepanjang hari → variasi bus antar-blok kecil.
+4. **Struk Go / Menu Go / Properti Go belum masuk** — menunggu endpoint *Missions* MAPID.
+5. **Bukan prediksi penumpang** — peta sisi permintaan kawasan vs sisi layanan. Data penumpang operator = slot kalibrasi.
+6. Semua bobot (2 / 1 / 0,5 · 0,35 · persentil 75 · 1 km / 2 km) adalah **keputusan tim yang ditulis terbuka** supaya bisa didebat dan diuji sensitivitasnya.

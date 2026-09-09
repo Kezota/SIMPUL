@@ -1,137 +1,120 @@
-import { REGION_LABEL } from '../data/transitNodes'
-import type { DatasetDef } from '../lib/types'
+import { WEIGHTS, type SimpulModel } from '../lib/engine'
+import type { ActivityFeedStatus } from '../lib/mapidApi'
 
-const STEPS = [
-  {
-    n: '1',
-    title: 'Identifikasi data awal',
-    body: 'Empat dataset panitia, skemanya berbeda-beda: Community Maps (teks bebas + media), Menu Go (survei tempat makan), Struk Go (bukti transaksi), Properti Go (listing properti). Dipilih satu yang aktif, tidak digabung.',
-  },
-  {
-    n: '2',
-    title: 'Adapter & standardisasi',
-    body: 'Tiap dataset punya adapter yang menormalkannya jadi satu bentuk `Observation`: lokasi, judul, kategori, foto, plus kolom khas dataset (harga, waktu, alamat). Karena bentuknya seragam, satu mesin analisis melayani keempatnya tanpa percabangan.',
-  },
-  {
-    n: '3',
-    title: 'Cleaning',
-    body: 'Konversi tipe (lat/long string → number), validasi koordinat terhadap bbox Indonesia, dedupe pakai ID resmi kalau ada, buang kolom yang kosong seluruhnya, normalisasi nilai kategorikal yang tersimpan sebagai kalimat panjang. Detailnya berbeda per dataset — lihat catatan di bawah.',
-  },
-  {
-    n: '4',
-    title: 'Pengolahan teks (AI)',
-    body: 'Hanya Community Maps yang butuh klasifikasi tema, karena tiga dataset lain sudah punya kolom kategori. Untuk semua dataset, teks bebasnya tetap dipindai untuk tag dan indikasi harga.',
-  },
-  {
-    n: '5',
-    title: 'Data pendukung',
-    body: '17 simpul transportasi massal di dua wilayah: Bandung Raya (11) dan koridor KRL Depok (6). Simpul yang dipakai mengikuti wilayah dataset aktif. Koordinatnya masih perkiraan manual.',
-  },
-  {
-    n: '6',
-    title: 'Analisis spasial',
-    body: 'Nearest-neighbour join tiap titik ke simpul terdekat (haversine) — sekaligus membentuk catchment ala Voronoi; klasifikasi keterjangkauan pada ambang 500 m / 1 km / 2 km; buffer geodesik radius layanan; deteksi blank spot (>2 km dari simpul mana pun).',
-  },
-  {
-    n: '7',
-    title: 'Indexing',
-    body: 'Indeks Denyut Transit per simpul (0–100) = 40% volume berbobot jarak Σ exp(−d/1500) + 30% rata-rata relevansi kategori + 30% rata-rata kelengkapan bukti visual. Buffer 1 km kaku sempat dipakai tapi membuat sebagian besar simpul bernilai 0 — peluruhan jarak dipilih supaya indeksnya informatif tanpa memalsukan kedekatan.',
-  },
-  {
-    n: '8',
-    title: 'Insight, rekomendasi, WebGIS',
-    body: 'Angka level kota, peringkat simpul, dan rekomendasi bertarget stakeholder yang disusun dari kondisi data. Semuanya masuk ke peta interaktif + tabel atribut + grafik + asisten spasial yang mengubah pertanyaan bahasa alami jadi filter peta.',
-  },
-]
+/* ── Panel Metode ─────────────────────────────────────────────────────────── */
 
-const CAVEATS = [
-  'Basemap masih CARTO/OSM. Kompetisi mewajibkan MAPID MAPS — slot env `VITE_MAPID_STYLE_URL` sudah disiapkan, tinggal diisi.',
-  'Klasifikasi tema dan asisten AI masih rule-based (deterministik), belum LLM. Kontrak fungsinya sudah dibuat supaya bisa ditukar tanpa mengubah UI.',
-  'Koordinat 17 simpul transit adalah perkiraan manual, bukan data resmi.',
-  'Tiga dari empat dataset hanya berisi 15–25 baris. Semua angka sah secara perhitungan tapi lemah secara statistik — ini prototipe metode, bukan temuan final.',
-  'Belum ada network analysis berbasis jaringan jalan; jarak masih garis lurus (haversine), jadi cenderung optimistis.',
-  'Foto belum dianalisis sama sekali, padahal itu aset terbesar keempat dataset ini.',
-]
-
-export default function MethodPanel({
-  dataset,
-  notes,
-  dropped,
-}: {
-  dataset: DatasetDef
-  notes: string[]
-  dropped: number
-}) {
+export default function MethodPanel({ model, feedStatus }: { model: SimpulModel; feedStatus: ActivityFeedStatus | 'memuat' }) {
+  const c = model.counts
   return (
     <div className="panel">
-      <div className="panel-head">
-        <h2>Metodologi</h2>
-      </div>
+      <p className="block-note dataset-blurb">
+        Versi bahasa sederhana: <b>CARA-KERJA.md</b>; alasan tiap angka: <b>PERHITUNGAN.md</b> di repo.
+      </p>
 
       <section className="block">
-        <h3>Dataset aktif: {dataset.label}</h3>
-        <dl className="kv">
-          <dt>Sumber</dt>
-          <dd>{dataset.source}</dd>
-          <dt>Wilayah</dt>
-          <dd>{REGION_LABEL[dataset.region]}</dd>
-          <dt>Kategori</dt>
-          <dd>
-            {dataset.categorySource === 'ai'
-              ? 'Hasil klasifikasi AI (tidak ada di data mentah)'
-              : 'Kolom asli data panitia'}
-          </dd>
-          <dt>Baris dibuang</dt>
-          <dd>{dropped}</dd>
-        </dl>
-        <p className="ai-summary">
-          <b>Peran AI di dataset ini:</b> {dataset.aiRole}
-        </p>
-      </section>
-
-      <section className="block">
-        <h3>Catatan cleaning untuk {dataset.label}</h3>
+        <h3>Sumber data yang dipakai</h3>
         <ul className="caveats">
-          {notes.map((n) => (
-            <li key={n}>{n}</li>
+          {model.sources.map((src) => (
+            <li key={src}>{src}</li>
           ))}
         </ul>
+        {feedStatus === 'snapshot' && (
+          <p className="block-note warn">
+            Server MAPID tidak terjangkau saat halaman dimuat, jadi dipakai snapshot 9 Sep 2026.
+          </p>
+        )}
       </section>
 
       <section className="block">
-        <h3>Alur pengolahan data</h3>
+        <h3>Cara hitungnya, singkat</h3>
         <ol className="steps">
-          {STEPS.map((s) => (
-            <li key={s.n}>
-              <span className="step-n">{s.n}</span>
-              <div>
-                <b>{s.title}</b>
-                <p>{s.body}</p>
-              </div>
-            </li>
-          ))}
+          <li>
+            <span className="step-n">1</span>
+            <div>
+              <b>Laporan warga jadi bukti kegiatan</b>
+              <p>
+                Tiap laporan Community Maps = satu titik + jam + bobot. Jam dari "pukul …" yang
+                ditulis surveyor (kalau tidak ada, jam unggah WIB). Bobot {WEIGHTS.aktivitasRamai}/
+                {WEIGHTS.aktivitas}/{WEIGHTS.aktivitasSepi} menurut kata <i>ramai</i> / tanpa
+                keterangan / <i>sepi</i> di teksnya — aturan kata kunci yang bisa diaudit, bukan LLM.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span className="step-n">2</span>
+            <div>
+              <b>Kelompokkan per kawasan per waktu</b>
+              <p>Sel heksagon ±500 m (jarak nyaman jalan kaki) × 5 blok waktu (4 jam).</p>
+            </div>
+          </li>
+          <li>
+            <span className="step-n">3</span>
+            <div>
+              <b>"Ramai" = dibandingkan se-wilayah, bukan angka mutlak</b>
+              <p>
+                Masuk 25% teratas = ramai, 50–75% = sedang, sisanya sepi. Kawasan tanpa laporan ={' '}
+                <b>Tidak Ada Data</b> — bukan sepi, dan tidak diperkirakan (sesuai PRD).
+              </p>
+            </div>
+          </li>
+          <li>
+            <span className="step-n">4</span>
+            <div>
+              <b>Tabrakkan dengan layanan transit nyata</b>
+              <p>
+                Skor layanan = faktor jarak (≤1 km penuh, 1–2 km 0,6, &gt;2 km 0) × keberangkatan
+                terjadwal pada blok itu ÷ persentil-90 se-wilayah; diambil yang tertinggi antara
+                stasiun terdekat dan halte terdekat. Ramai + tidak ada layanan dalam 1 km ={' '}
+                <b>tak terjangkau</b>. Ramai + layanan ada tapi skornya &lt;35/100 ={' '}
+                <b>frekuensi rendah</b>.
+              </p>
+            </div>
+          </li>
+          <li>
+            <span className="step-n">5</span>
+            <div>
+              <b>Sel bermasalah yang bersebelahan digabung jadi kandidat</b>
+              <p>
+                Tiap kantong diberi peringkat dari jumlah sel, jumlah laporan, dan seberapa rendah
+                layanannya. Keyakinan: tinggi ≥ 8 laporan di ≥ 2 sel; sedang 3–7; rendah &lt; 3.
+              </p>
+            </div>
+          </li>
         </ol>
       </section>
 
       <section className="block">
-        <h3>Batasan yang perlu diakui</h3>
+        <h3>Yang jujur kami akui</h3>
         <ul className="caveats">
-          {CAVEATS.map((c) => (
-            <li key={c}>{c}</li>
-          ))}
+          <li>
+            Data aktivitas: {c.activities.toLocaleString('id-ID')} laporan warga ({c.activitiesRamai}{' '}
+            menyebut ramai, {c.activitiesSepi} menyebut sepi; {c.activitiesHourFromText} jamnya dibaca
+            dari teks "pukul …"). Struk Go, Menu Go, dan Properti Go belum masuk — menunggu endpoint{' '}
+            <i>Missions</i> MAPID.
+          </li>
+          <li>
+            Sebaran laporan mengikuti lokasi surveyor bekerja (sebagian besar Agustus 2026), bukan sampel
+            acak se-Jabodetabek. Kawasan tanpa laporan tetap "Tidak Ada Data".
+          </li>
+          <li>
+            Jam yang terekam = jam surveyor bekerja (memuncak 12–17 WIB), jadi blok pagi &amp; larut lebih
+            tipis datanya — bukan berarti kotanya sepi.
+          </li>
+          <li>
+            Perjalanan KRL harian dibagi ke blok waktu memakai bobot headway sibuk/non-sibuk (timetable
+            per stasiun belum tersedia sebagai data terbuka). Headway GTFS TransJakarta hampir rata
+            sepanjang hari, jadi variasi antar-blok untuk bus kecil.
+          </li>
+          <li>
+            Ini bukan ramalan jumlah penumpang. Ini peta "kawasan hidup" vs "layanan ada" — data
+            penumpang operator tinggal masuk sebagai pengkalibrasi kalau tersedia.
+          </li>
+          <li>
+            Asisten "Tanya" masih berbasis aturan. Rencana: LLM dengan <i>tool use</i> di backend — model
+            memilih alat (ringkasan blok, daftar kandidat, profil kawasan) dan merangkai kalimat, angka
+            tetap dari mesin hitung ini.
+          </li>
         </ul>
-      </section>
-
-      <section className="block">
-        <h3>Sumber data</h3>
-        <dl className="kv">
-          <dt>Data dasar</dt>
-          <dd>Community Maps, Menu Go, Struk Go, Properti Go — MAPID WebGIS Competition 2026</dd>
-          <dt>Data pendukung</dt>
-          <dd>Titik simpul transit (perkiraan manual; rencana: OpenStreetMap / BIG / KAI)</dd>
-          <dt>Basemap</dt>
-          <dd>CARTO + OpenStreetMap (sementara) → MAPID MAPS</dd>
-        </dl>
       </section>
     </div>
   )

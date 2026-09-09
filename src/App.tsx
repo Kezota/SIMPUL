@@ -1,48 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import logoImg from './assets/logo.jpeg'
-import MapView, { type LayerVisibility } from './components/MapView'
-import ControlPanel from './components/ControlPanel'
-import InsightPanel from './components/InsightPanel'
-import AIAssistant from './components/AIAssistant'
-import DetailPanel from './components/DetailPanel'
-import MethodPanel from './components/MethodPanel'
-import DataTable from './components/DataTable'
-
-import { DATASETS } from './data/datasets'
-import { REGION_LABEL } from './data/transitNodes'
-import {
-  applyFilters,
-  computeInsights,
-  computeNodeStats,
-  loadDataset,
-} from './lib/analysis'
 import type { BasemapVariant } from './lib/basemap'
-import type { DatasetId, Filters } from './lib/types'
-import './webgis.css'
+import { buildModel } from './lib/engine'
+import Guide from './components/Guide'
+import { guideSeen, markGuideSeen } from './lib/guideStorage'
+import { loadActivities, type ActivityFeed } from './lib/mapidApi'
+import { buildRecommendations, type Recommendation } from './lib/recommend'
+import MapView, { type MapMode } from './components/MapView'
+import TimeSlider from './components/TimeSlider'
+import AssistantPanel from './components/AssistantPanel'
+import MethodPanel from './components/MethodPanel'
+import RecPanel from './components/RecPanel'
+import type { BlockId } from './lib/timeblocks'
+import type { SimpulAnswer } from './lib/assistant'
 
-const INITIAL_FILTERS: Filters = {
-  categories: [],
-  access: [],
-  onlyHighlighted: false,
-  maxDistanceM: 40000,
-  search: '',
-  nodeId: null,
-}
+import './App.css'
 
-type Tab = 'insight' | 'ai' | 'detail' | 'metode' | 'kontrol' | 'tabel'
+type Tab = 'rekomendasi' | 'ai' | 'metode'
 
-const DESKTOP_TABS: { id: Tab; label: string }[] = [
-  { id: 'insight', label: 'Insight' },
-  { id: 'ai', label: 'AI' },
-  { id: 'detail', label: 'Detail' },
-  { id: 'metode', label: 'Metode' },
-]
-
-const MOBILE_TABS: { id: Tab; label: string }[] = [
-  { id: 'kontrol', label: 'Kontrol' },
-  ...DESKTOP_TABS,
-  { id: 'tabel', label: 'Tabel' },
+const TABS: { id: Tab; label: string; hint: string }[] = [
+  { id: 'rekomendasi', label: 'Kandidat', hint: 'Daftar kawasan yang perlu ditindaklanjuti' },
+  { id: 'ai', label: 'Tanya', hint: 'Tanya dalam bahasa biasa, peta ikut bergerak' },
+  { id: 'metode', label: 'Metode', hint: 'Dari mana angkanya, dan apa batasnya' },
 ]
 
 function useIsMobile() {
@@ -59,280 +39,261 @@ function useIsMobile() {
 }
 
 export default function App() {
-  const [datasetId, setDatasetId] = useState<DatasetId>('community')
+  // Laporan warga ditarik live dari API MAPID lewat /api/activities (snapshot bila gagal).
+  const [feed, setFeed] = useState<ActivityFeed | null>(null)
+  useEffect(() => {
+    const ac = new AbortController()
+    loadActivities(buildModel().region.bbox, ac.signal)
+      .then(setFeed)
+      .catch(() => {
+        /* dibatalkan saat komponen dilepas — abaikan */
+      })
+    return () => ac.abort()
+  }, [])
+  const feedStatus = feed ? feed.status : 'memuat'
 
-  // Seluruh pipeline dijalankan ulang tiap dataset berganti:
-  // adapter -> cleaning -> enrichment -> spatial join -> indexing.
-  const loaded = useMemo(() => loadDataset(datasetId), [datasetId])
-  const { dataset, observations, nodes, dropped, notes } = loaded
+  // Seluruh model dihitung ulang saat feed tiba: bukti → sel×blok → kelas → gap.
+  const model = useMemo(() => buildModel(feed?.items ?? [], feed?.note), [feed])
+  const recs = useMemo(() => buildRecommendations(model), [model])
 
-  const nodeStats = useMemo(
-    () => computeNodeStats(observations, nodes),
-    [observations, nodes],
-  )
-  const insights = useMemo(
-    () => computeInsights(observations, nodeStats),
-    [observations, nodeStats],
-  )
-
-  const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS)
-  const [layers, setLayers] = useState<LayerVisibility>({
-    points: true,
-    heatmap: true,
-    nodes: true,
-    radius: true,
-    links: false,
-  })
-  const [variant, setVariant] = useState<BasemapVariant>('light')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [focus, setFocus] = useState<
-    { lat: number; lon: number; zoom: number; nonce: number } | null
-  >(null)
-  const [tab, setTab] = useState<Tab>('insight')
-  const [tableOpen, setTableOpen] = useState(false)
+  const [block, setBlock] = useState<BlockId>('sore')
+  const [mode, setMode] = useState<MapMode>('denyut')
+  const [showRail, setShowRail] = useState(true)
+  const [showStops, setShowStops] = useState(true)
+  const [satellite, setSatellite] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [focus, setFocus] = useState<{ lat: number; lon: number; zoom: number; nonce: number } | null>(null)
+  const [tab, setTab] = useState<Tab>('rekomendasi')
+  const [activeRecId, setActiveRecId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [hintDismissed, setHintDismissed] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(() => !guideSeen())
 
   const isMobile = useIsMobile()
+  const variant: BasemapVariant = satellite ? 'satellite' : theme
 
-  const filtered = useMemo(
-    () => applyFilters(observations, filters),
-    [observations, filters],
-  )
+  const closeGuide = () => {
+    markGuideSeen()
+    setGuideOpen(false)
+  }
 
-  const selected = useMemo(
-    () => observations.find((o) => o.id === selectedId) ?? null,
-    [observations, selectedId],
-  )
-  const selectedNode = useMemo(
-    () => nodeStats.find((n) => n.node.id === selectedNodeId) ?? null,
-    [nodeStats, selectedNodeId],
-  )
-
-  // nonce = penghitung naik, supaya terbang ke koordinat yang SAMA dua kali
-  // tetap memicu efek di MapView. Sengaja bukan timestamp: nilai jam bukan
-  // fungsi murni dan membuat render tidak deterministik.
   const flyTo = (lat: number, lon: number, zoom: number) =>
     setFocus((prev) => ({ lat, lon, zoom, nonce: (prev?.nonce ?? 0) + 1 }))
 
-  /** Ganti dataset: filter & seleksi lama tidak berlaku (kategorinya beda). */
-  const switchDataset = (id: DatasetId) => {
-    if (id === datasetId) return
-    setDatasetId(id)
-    setFilters(INITIAL_FILTERS)
-    setSelectedId(null)
-    setSelectedNodeId(null)
-    setFocus(null)
+  const changeBlock = (b: BlockId) => {
+    setBlock(b)
+    setHintDismissed(true)
   }
 
-  const openTab = (t: Tab) => {
-    setTab(t)
+  /** Dipakai oleh kartu kandidat DAN marker bernomor di peta. */
+  const focusRec = (r: Recommendation) => {
+    setMode('gap')
+    if (r.block) setBlock(r.block)
+    flyTo(r.focus.lat, r.focus.lon, r.focus.zoom)
+    setActiveRecId(r.id)
+    setHintDismissed(true)
+  }
+
+  const onRecMarkerClick = (r: Recommendation) => {
+    focusRec(r)
+    setTab('rekomendasi')
     if (isMobile) setSheetOpen(true)
   }
 
-  const selectObservation = (id: string | null) => {
-    setSelectedId(id)
-    if (!id) return
-    setSelectedNodeId(null)
-    const o = observations.find((x) => x.id === id)
-    if (o) flyTo(o.lat, o.lon, 15)
-    openTab('detail')
+  const applyAnswer = (a: SimpulAnswer) => {
+    if (a.setBlock) setBlock(a.setBlock)
+    if (a.focus) flyTo(a.focus.lat, a.focus.lon, a.focus.zoom)
+    setHintDismissed(true)
   }
-
-  const selectNode = (nodeId: string) => {
-    setSelectedNodeId(nodeId)
-    setSelectedId(null)
-    const n = nodeStats.find((x) => x.node.id === nodeId)
-    if (n) flyTo(n.node.lat, n.node.lon, 14)
-    openTab('detail')
-  }
-
-  const focusNode = (nodeId: string) => {
-    const n = nodeStats.find((x) => x.node.id === nodeId)
-    if (!n) return
-    setSelectedNodeId(n.node.id)
-    flyTo(n.node.lat, n.node.lon, 14)
-  }
-
-  const controlPanel = (
-    <ControlPanel
-      dataset={dataset}
-      filters={filters}
-      setFilters={setFilters}
-      layers={layers}
-      setLayers={setLayers}
-      nodeStats={nodeStats}
-      filtered={filtered}
-      total={observations.length}
-    />
-  )
 
   const panelFor = (t: Tab) => {
     switch (t) {
-      case 'insight':
+      case 'rekomendasi':
         return (
-          <InsightPanel
-            dataset={dataset}
-            insights={insights}
-            nodeStats={nodeStats}
-            onFocusNode={focusNode}
-            activeNodeId={selectedNodeId}
+          <RecPanel
+            model={model}
+            recs={recs}
+            block={block}
+            mode={mode}
+            loading={feedStatus === 'memuat'}
+            activeRecId={activeRecId}
+            onSetBlock={changeBlock}
+            onFocus={focusRec}
+            onShowGap={() => setMode('gap')}
           />
         )
       case 'ai':
-        return (
-          <AIAssistant
-            key={dataset.id}
-            ctx={{ dataset, observations, nodeStats, insights }}
-            onApply={(patch, f) => {
-              setFilters({ ...INITIAL_FILTERS, ...patch })
-              if (f) flyTo(f.lat, f.lon, f.zoom)
-            }}
-          />
-        )
-      case 'detail':
-        return (
-          <DetailPanel
-            dataset={dataset}
-            observation={selected}
-            node={selectedNode}
-            onClear={() => {
-              setSelectedId(null)
-              setSelectedNodeId(null)
-            }}
-            onFilterNode={(id) => {
-              setFilters({ ...filters, nodeId: id })
-              focusNode(id)
-            }}
-          />
-        )
+        return <AssistantPanel model={model} recs={recs} onApply={applyAnswer} />
       case 'metode':
-        return <MethodPanel dataset={dataset} notes={notes} dropped={dropped} />
-      case 'kontrol':
-        return controlPanel
-      case 'tabel':
-        return (
-          <DataTable
-            dataset={dataset}
-            rows={filtered}
-            selectedId={selectedId}
-            onSelect={selectObservation}
-          />
-        )
+        return <MethodPanel model={model} feedStatus={feedStatus} />
     }
   }
 
+  const feedLabel =
+    feedStatus === 'memuat'
+      ? 'memuat laporan warga…'
+      : `${model.counts.activities.toLocaleString('id-ID')} laporan warga${
+          feedStatus === 'live' ? ' · live' : feedStatus === 'snapshot' ? ' · snapshot' : ''
+        }`
+
   return (
-    <div className={`app${isMobile ? ' is-mobile' : ''}`} data-theme={variant}>
+    <div className={`app${isMobile ? ' is-mobile' : ''}`} data-theme={theme}>
       <header className="topbar">
         <div className="brand">
-          <img src={logoImg} alt="SIMPUL Logo" className="brand-mark" />
+          <img src={logoImg} alt="SIMPUL Logo" className="brand-mark simpul-mark" />
           <div>
-            <h1>SIMPUL · Eksplorasi Data</h1>
-            <p>
-              Apa yang sebenarnya hidup di sekitar stasiun &amp; terminal — dibaca dari
-              data lapangan MAPID
-            </p>
+            <h1>SIMPUL</h1>
+            <p>Kapan kota hidup — dan apakah transportasi massalnya hadir pada jam itu</p>
           </div>
         </div>
-
-        <nav className="dataset-switch" aria-label="Pilih dataset">
-          {DATASETS.map((d) => (
-            <button
-              key={d.id}
-              type="button"
-              className={d.id === datasetId ? 'on' : undefined}
-              title={`${d.blurb} — ${d.source}`}
-              onClick={() => switchDataset(d.id)}
-            >
-              {d.short}
-            </button>
-          ))}
-        </nav>
-
         <div className="topbar-actions">
-          <span className="data-note" title={`${dropped} baris dibuang saat cleaning`}>
-            {observations.length} titik · {nodes.length} simpul ·{' '}
-            {REGION_LABEL[dataset.region]}
+          <span className="data-note" title={model.sources.join('\n')}>
+            <i className={`feed-status feed-${feedStatus}`} aria-hidden="true" />
+            {feedLabel} · {model.nodes.length} stasiun · {model.stops.length.toLocaleString('id-ID')} halte
           </span>
+          <button type="button" className="btn ghost btn-guide" onClick={() => setGuideOpen(true)} aria-label="Cara pakai">
+            ? <span className="btn-txt">Cara pakai</span>
+          </button>
           <button
             type="button"
             className="btn ghost"
-            onClick={() => setVariant(variant === 'light' ? 'dark' : 'light')}
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+            title="Ganti terang/gelap"
+            aria-label="Ganti tema terang/gelap"
           >
-            {variant === 'light' ? '🌙' : '☀️'}
+            {theme === 'light' ? '🌙' : '☀️'}
           </button>
         </div>
       </header>
 
-      <main className="layout">
-        {!isMobile && (
-          <aside className="rail rail-left">
-            <div className="rail-body">{controlPanel}</div>
-          </aside>
-        )}
-
+      <main className="layout layout-simpul">
         <section className="map-area">
           <MapView
-            dataset={dataset}
-            observations={filtered}
-            allObservations={observations}
-            nodeStats={nodeStats}
-            layers={layers}
+            model={model}
+            recs={recs}
+            block={block}
+            mode={mode}
+            showRail={showRail}
+            showStops={showStops}
             variant={variant}
-            selectedId={selectedId}
             focus={focus}
-            onSelect={selectObservation}
-            onSelectNode={selectNode}
+            onRecClick={onRecMarkerClick}
           />
 
-          <div className="map-legend">
-            <b>Legenda · {dataset.label}</b>
-            <ul>
-              <li>
-                <i className="lg-dot" /> titik data — warna = kategori
-              </li>
-              <li>
-                <i className="lg-ring" /> cincin gelap = {dataset.highlight.label.toLowerCase()}
-              </li>
-              <li>
-                <i className="lg-circle" /> lingkaran putus-putus = radius layanan 1 km
-              </li>
-            </ul>
+          {/* Kontrol peta: dua kelompok berlabel supaya jelas mana "cerita" dan mana "lapisan". */}
+          <div className="map-tools">
+            <div className="tool-group" role="group" aria-label="Tampilan peta">
+              <span className="tool-caption">Tampilan</span>
+              <div className="tool-row mode-switch">
+                <button
+                  type="button"
+                  className={mode === 'denyut' ? 'on' : undefined}
+                  onClick={() => setMode('denyut')}
+                  title="Seberapa hidup tiap kawasan pada blok waktu ini"
+                >
+                  🔥 Denyut
+                </button>
+                <button
+                  type="button"
+                  className={mode === 'gap' ? 'on' : undefined}
+                  onClick={() => setMode('gap')}
+                  title="Kawasan ramai yang layanan transitnya kurang"
+                >
+                  🚨 Kesenjangan
+                </button>
+              </div>
+            </div>
+            <div className="tool-group" role="group" aria-label="Lapisan peta">
+              <span className="tool-caption">Lapisan</span>
+              <div className="tool-row">
+                <button
+                  type="button"
+                  className={`chip-toggle${showStops ? ' on' : ''}`}
+                  aria-pressed={showStops}
+                  onClick={() => setShowStops(!showStops)}
+                  title="7.814 halte TransJakarta & JakLingko (GTFS resmi) — klik titiknya untuk keberangkatan per blok"
+                >
+                  <span className="chip-ico" aria-hidden="true">🚌</span>
+                  <span className="chip-txt">Halte bus</span>
+                </button>
+                <button
+                  type="button"
+                  className={`chip-toggle${showRail ? ' on' : ''}`}
+                  aria-pressed={showRail}
+                  onClick={() => setShowRail(!showRail)}
+                  title="Jalur KRL/MRT/LRT/Whoosh (geometri OpenStreetMap)"
+                >
+                  <span className="chip-ico" aria-hidden="true">🛤</span>
+                  <span className="chip-txt">Jalur rel</span>
+                </button>
+                <button
+                  type="button"
+                  className={`chip-toggle${satellite ? ' on' : ''}`}
+                  aria-pressed={satellite}
+                  onClick={() => setSatellite(!satellite)}
+                  title="Citra satelit (MAPID MAPS)"
+                >
+                  <span className="chip-ico" aria-hidden="true">🛰</span>
+                  <span className="chip-txt">Satelit</span>
+                </button>
+              </div>
+            </div>
           </div>
 
-          {!isMobile && (
-            <div className={`table-drawer${tableOpen ? ' open' : ''}`}>
-              <button
-                type="button"
-                className="drawer-handle"
-                onClick={() => setTableOpen(!tableOpen)}
-              >
-                Tabel Atribut · {filtered.length} baris <span>{tableOpen ? '▾' : '▴'}</span>
-              </button>
-              {tableOpen && (
-                <DataTable
-                  dataset={dataset}
-                  rows={filtered}
-                  selectedId={selectedId}
-                  onSelect={selectObservation}
-                />
-              )}
-            </div>
+          {/* Legenda ringkas, ikut mode */}
+          <div className="simpul-legend-card">
+            {mode === 'denyut' ? (
+              <>
+                <b className="legend-title">Denyut · seberapa hidup kawasan</b>
+                <div className="ramp-bar" />
+                <div className="ramp-labels">
+                  <span>sepi</span>
+                  <span>ramai</span>
+                </div>
+                <small>
+                  Dari laporan lapangan warga pada blok waktu ini. Perbesar untuk melihat per kawasan.
+                  Tanpa warna = <b>tidak ada data</b> (bukan sepi — SIMPUL tidak menebak).
+                </small>
+              </>
+            ) : (
+              <>
+                <b className="legend-title">Kesenjangan · ramai tapi layanan kurang</b>
+                <div className="gap-legend-row">
+                  <i style={{ background: '#dc2626' }} /> Tak terjangkau — tidak ada stasiun/halte dalam 1 km
+                </div>
+                <div className="gap-legend-row">
+                  <i style={{ background: '#f97316' }} /> Frekuensi rendah — ada layanan, jadwalnya tipis
+                </div>
+                <small>
+                  Nomor di peta = nomor kandidat di panel. Angka di stasiun = keberangkatan terjadwal pada
+                  blok ini.
+                </small>
+              </>
+            )}
+          </div>
+
+          {!hintDismissed && !guideOpen && (
+            <button type="button" className="coach-mark" onClick={() => setHintDismissed(true)}>
+              👋 Geser blok waktu di bawah — lihat kota bernapas. <u>Oke</u>
+            </button>
           )}
+
+          <TimeSlider block={block} onChange={changeBlock} />
         </section>
 
         {!isMobile && (
           <aside className="rail rail-right">
             <nav className="tabs">
-              {DESKTOP_TABS.map((t) => (
+              {TABS.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   className={tab === t.id ? 'on' : undefined}
+                  title={t.hint}
                   onClick={() => setTab(t.id)}
                 >
                   {t.label}
+                  {t.id === 'rekomendasi' && recs.length > 0 && <span className="tab-count">{recs.length}</span>}
                 </button>
               ))}
             </nav>
@@ -344,11 +305,11 @@ export default function App() {
       {isMobile && (
         <div className={`sheet${sheetOpen ? ' open' : ''}`}>
           <nav className="tabs">
-            {MOBILE_TABS.map((t) => (
+            {TABS.map((t) => (
               <button
                 key={t.id}
                 type="button"
-                className={tab === t.id && sheetOpen ? 'on' : undefined}
+                className={sheetOpen && tab === t.id ? 'on' : undefined}
                 onClick={() => {
                   if (tab === t.id && sheetOpen) setSheetOpen(false)
                   else {
@@ -364,6 +325,8 @@ export default function App() {
           {sheetOpen && <div className="sheet-body">{panelFor(tab)}</div>}
         </div>
       )}
+
+      {guideOpen && <Guide onClose={closeGuide} />}
     </div>
   )
 }

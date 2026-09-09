@@ -1,7 +1,7 @@
 # Ide Utama: Peta Denyut & Kesenjangan Transportasi
 
 > Dokumen buat menjelaskan ide ke tim. Bahasa dibuat sesederhana mungkin.
-> Update terakhir: 26 Juli 2026. Dokumen pendukung: [DATA-DAN-ANALISIS.md](DATA-DAN-ANALISIS.md) (angka-angka dari data sample) dan [RESEARCH-AKSESIBILITAS.md](RESEARCH-AKSESIBILITAS.md) (riset buat fitur aksesibilitas).
+> Ditulis 26 Juli 2026 sebagai dokumen ide awal. **Catatan 9 Sep 2026:** implementasi sudah bergeser — data aktivitas sekarang Community Maps live dari API MAPID (Jabodetabek), fitur aksesibilitas dan prediksi AI **dikeluarkan dari lingkup** (PRD: AI = asisten LLM tool-use saja), dan sampel Bandung dihapus. Kondisi terkini: [CARA-KERJA.md](CARA-KERJA.md).
 
 ---
 

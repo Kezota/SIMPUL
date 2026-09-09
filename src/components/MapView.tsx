@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
 import {
-  GeolocateControl,
   GeoJSONSource,
   Map as MLMap,
   Marker,
@@ -10,111 +9,128 @@ import {
 } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
-import { boundsOf, toFeatureCollection } from '../lib/analysis'
+import railLines from '../data/railLines.json' with { type: 'json' }
 import { getBasemapStyle, type BasemapVariant } from '../lib/basemap'
-import { circlePolygon, formatDistance } from '../lib/geo'
-import { categoryOf } from '../data/datasets'
-import { NODE_KIND_LABEL } from '../data/transitNodes'
-import type { DatasetDef, NodeStats, Observation } from '../lib/types'
+import { formatDistance } from '../lib/geo'
+import { hexPolygon } from '../lib/hexgrid'
+import { TIME_BLOCKS, type BlockId } from '../lib/timeblocks'
+import { REGION, type SimpulModel } from '../lib/engine'
+import type { Recommendation } from '../lib/recommend'
 
-export interface LayerVisibility {
-  points: boolean
-  heatmap: boolean
-  nodes: boolean
-  radius: boolean
-  links: boolean
-}
+/** Dua cerita, dua tampilan — supaya layar tidak menceritakan semuanya sekaligus. */
+export type MapMode = 'denyut' | 'gap'
 
 interface Props {
-  dataset: DatasetDef
-  observations: Observation[]
-  allObservations: Observation[]
-  nodeStats: NodeStats[]
-  layers: LayerVisibility
+  model: SimpulModel
+  recs: Recommendation[]
+  block: BlockId
+  mode: MapMode
+  showRail: boolean
+  showStops: boolean
   variant: BasemapVariant
-  selectedId: string | null
   focus: { lat: number; lon: number; zoom: number; nonce: number } | null
-  onSelect: (id: string | null) => void
-  onSelectNode: (nodeId: string) => void
+  onRecClick: (rec: Recommendation, index: number) => void
 }
-
-const SRC_PTS = 'src-points'
-const SRC_RADIUS = 'src-radius'
-const SRC_LINKS = 'src-links'
 
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 
+const blockLabel = (id: BlockId) => {
+  const b = TIME_BLOCKS.find((x) => x.id === id)!
+  return `${b.label} (${b.range})`
+}
+
+/**
+ * Batas zoom peralihan tampilan Denyut:
+ * jauh = permukaan heatmap halus (pola kota), dekat = sel heksagon (inspeksi).
+ * Ini jawaban untuk masalah "bintik-bintik tanpa makna" — dari jauh yang
+ * terlihat adalah BENTUK keramaian, bukan konfeti sel.
+ */
+const HEX_MIN_ZOOM = 12.8
+const HEAT_FADE_START = 12.4
+const HEAT_FADE_END = 13.4
+
 export default function MapView({
-  dataset,
-  observations,
-  allObservations,
-  nodeStats,
-  layers,
+  model,
+  recs,
+  block,
+  mode,
+  showRail,
+  showStops,
   variant,
-  selectedId,
   focus,
-  onSelect,
-  onSelectNode,
+  onRecClick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MLMap | null>(null)
   const markersRef = useRef<Marker[]>([])
+  const recMarkersRef = useRef<Marker[]>([])
   const popupRef = useRef<Popup | null>(null)
   const readyRef = useRef(false)
 
-  const ptsFC = useMemo(
-    () => toFeatureCollection(observations, dataset),
-    [observations, dataset],
-  )
-
-  /** Buffer radius layanan tiap simpul — hasil geo.circlePolygon(). */
-  const radiusFC = useMemo<GeoJSON.FeatureCollection>(
-    () => ({
-      type: 'FeatureCollection',
-      features: nodeStats.map((n) => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          coordinates: circlePolygon(n.node.lat, n.node.lon, n.node.serviceRadiusM),
+  /** FeatureCollection hex + titik pusat (untuk heatmap), per blok. */
+  const fcByBlock = useMemo(() => {
+    const out = {} as Record<
+      BlockId,
+      { hex: GeoJSON.FeatureCollection; heat: GeoJSON.FeatureCollection }
+    >
+    for (const b of TIME_BLOCKS) {
+      const active = model.cells.filter((c) => c.blocks[b.id].total > 0)
+      out[b.id] = {
+        hex: {
+          type: 'FeatureCollection',
+          features: active.map((c) => {
+            const hb = c.blocks[b.id]
+            return {
+              type: 'Feature' as const,
+              geometry: { type: 'Polygon' as const, coordinates: hexPolygon(c.id) },
+              properties: {
+                key: c.key,
+                percentile: hb.percentile,
+                gap: hb.gap ?? '',
+              },
+            }
+          }),
         },
-        properties: { id: n.node.id, name: n.node.name, pulse: n.pulseIndex },
-      })),
-    }),
-    [nodeStats],
-  )
-
-  /** Garis penghubung titik jauh ke simpul terdekatnya. */
-  const linksFC = useMemo<GeoJSON.FeatureCollection>(() => {
-    const byId = new Map(nodeStats.map((n) => [n.node.id, n.node]))
-    return {
-      type: 'FeatureCollection',
-      features: observations
-        .filter((o) => o.accessClass === 'luar' || o.accessClass === 'sedang')
-        .flatMap((o) => {
-          const n = byId.get(o.nearestNodeId)
-          if (!n) return []
-          return [
-            {
+        heat: {
+          type: 'FeatureCollection',
+          features: active.map((c) => {
+            const hb = c.blocks[b.id]
+            return {
               type: 'Feature' as const,
               geometry: {
-                type: 'LineString' as const,
-                coordinates: [
-                  [o.lon, o.lat],
-                  [n.lon, n.lat],
-                ],
+                type: 'Point' as const,
+                coordinates: [c.center.lon, c.center.lat],
               },
-              properties: { far: o.accessClass === 'luar' ? 1 : 0 },
-            },
-          ]
-        }),
+              properties: { w: hb.total },
+            }
+          }),
+        },
+      }
     }
-  }, [observations, nodeStats])
+    return out
+  }, [model])
 
-  // installLayers() dipanggil ulang tiap kali basemap berganti, jadi ia harus
-  // membaca state terbaru — bukan nilai yang ter-capture saat peta dibuat.
-  const latest = useRef({ ptsFC, radiusFC, linksFC, layers, onSelect })
-  latest.current = { ptsFC, radiusFC, linksFC, layers, onSelect }
+  /** Halte TJ/JakLingko sebagai titik (dari GTFS) — untuk layer & popup. */
+  const stopsFC = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: model.stops.map((st) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [st.lon, st.lat] },
+        properties: {
+          id: st.id,
+          name: st.name,
+          jak: st.jak ? 1 : 0,
+          pagi: st.dep.pagi, siang: st.dep.siang, sore: st.dep.sore, malam: st.dep.malam, larut: st.dep.larut,
+        },
+      })),
+    }),
+    [model],
+  )
+
+  const latest = useRef({ fcByBlock, stopsFC, block, mode, model, showRail, showStops })
+  latest.current = { fcByBlock, stopsFC, block, mode, model, showRail, showStops }
 
   /* ── Init peta (sekali) ────────────────────────────────────────────────── */
   useEffect(() => {
@@ -123,8 +139,8 @@ export default function MapView({
     const map = new MLMap({
       container: containerRef.current,
       style: getBasemapStyle(variant),
-      center: [107.55, -6.92],
-      zoom: 10.5,
+      center: REGION.center,
+      zoom: REGION.zoom,
       attributionControl: { compact: true },
     })
     mapRef.current = map
@@ -132,32 +148,30 @@ export default function MapView({
 
     map.addControl(new NavigationControl({ visualizePitch: false }), 'top-right')
     map.addControl(new ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left')
-    map.addControl(new GeolocateControl({ trackUserLocation: false }), 'top-right')
 
-    // Layer custom dipasang begitu style siap, dan dipasang ulang tiap kali
-    // basemap diganti (setStyle membuang semua source/layer custom).
-    //
-    // 'style.load' menyala begitu spesifikasi style selesai di-parse — beda dari
-    // 'load' dan isStyleLoaded() yang keduanya baru siap setelah seluruh tile
-    // masuk. Bedanya penting: kalau basemap lambat atau diblokir, dua gate yang
-    // terakhir tidak pernah terpenuhi dan layer data ikut tidak pernah terpasang.
-    // installLayers() sendiri idempoten.
+    // 'style.load' (bukan 'load'/isStyleLoaded) — dua yang terakhir menunggu
+    // seluruh tile, jadi basemap lambat = layer data tak pernah terpasang.
     map.on('style.load', () => {
       readyRef.current = true
       installLayers(map)
     })
 
-    // Container peta ikut berubah ukuran tiap rail dibuka/ditutup, tabel atribut
-    // di-toggle, atau layar diputar. Tanpa resize(), MapLibre tetap memakai
-    // ukuran saat inisialisasi: kanvasnya melebar tapi tile hanya diminta untuk
-    // area lama, jadi ada pita kosong di tepi peta.
     const ro = new ResizeObserver(() => map.resize())
     ro.observe(containerRef.current)
+
+    // Label stasiun disembunyikan saat zoom jauh (129 stasiun + 7.8k halte akan
+    // saling tumpuk); titiknya tetap tampil. Dikontrol lewat atribut data + CSS.
+    const syncZoomClass = () => {
+      const z = map.getZoom()
+      containerRef.current?.setAttribute('data-zoom', z < 11.8 ? 'far' : z < 13 ? 'mid' : 'near')
+    }
+    syncZoomClass()
+    map.on('zoom', syncZoomClass)
 
     return () => {
       ro.disconnect()
       markersRef.current.forEach((m) => m.remove())
-      markersRef.current = []
+      recMarkersRef.current.forEach((m) => m.remove())
       popupRef.current?.remove()
       readyRef.current = false
       map.remove()
@@ -167,227 +181,319 @@ export default function MapView({
   }, [])
 
   function installLayers(map: MLMap) {
-    if (!map.getSource(SRC_RADIUS)) {
-      map.addSource(SRC_RADIUS, { type: 'geojson', data: latest.current.radiusFC })
+    /* Jalur rel — geometri asli OpenStreetMap (KRL/KA, MRT, LRT, Whoosh) se-Jabodetabek. */
+    if (!map.getSource('rail')) {
+      map.addSource('rail', { type: 'geojson', data: railLines as GeoJSON.FeatureCollection })
       map.addLayer({
-        id: 'radius-fill',
-        type: 'fill',
-        source: SRC_RADIUS,
-        paint: {
-          'fill-color': '#38bdf8',
-          'fill-opacity': ['interpolate', ['linear'], ['get', 'pulse'], 0, 0.04, 100, 0.22],
-        },
+        id: 'rail-casing',
+        type: 'line',
+        source: 'rail',
+        paint: { 'line-color': '#ffffff', 'line-width': 3.2, 'line-opacity': 0.85 },
       })
       map.addLayer({
-        id: 'radius-line',
+        id: 'rail-ka',
         type: 'line',
-        source: SRC_RADIUS,
+        source: 'rail',
+        filter: ['==', ['get', 'kind'], 'ka'],
+        paint: { 'line-color': '#334155', 'line-width': 1.6 },
+      })
+      map.addLayer({
+        id: 'rail-kcic',
+        type: 'line',
+        source: 'rail',
+        filter: ['in', ['get', 'kind'], ['literal', ['kcic', 'mrt', 'lrt']]],
         paint: {
-          'line-color': '#38bdf8',
-          'line-width': 1,
-          'line-dasharray': [2, 2],
-          'line-opacity': 0.7,
+          'line-color': '#b91c1c',
+          'line-width': 1.6,
+          'line-dasharray': [2.2, 1.4],
         },
       })
     }
 
-    if (!map.getSource(SRC_LINKS)) {
-      map.addSource(SRC_LINKS, { type: 'geojson', data: latest.current.linksFC })
+    if (!map.getSource('stops')) {
+      map.addSource('stops', { type: 'geojson', data: latest.current.stopsFC })
       map.addLayer({
-        id: 'links-line',
-        type: 'line',
-        source: SRC_LINKS,
+        id: 'stops-dots',
+        type: 'circle',
+        source: 'stops',
+        minzoom: 11,
         paint: {
-          'line-color': ['case', ['==', ['get', 'far'], 1], '#ef4444', '#f59e0b'],
-          'line-width': 1.2,
-          'line-opacity': 0.4,
-          'line-dasharray': [1, 2],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 1.6, 14, 4.5],
+          'circle-color': ['case', ['==', ['get', 'jak'], 1], '#0ea5e9', '#1d4ed8'],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 14, 1],
+          'circle-opacity': 0.85,
         },
+      })
+      map.on('click', 'stops-dots', (e) => {
+        const f = e.features?.[0]
+        if (!f) return
+        const p = f.properties ?? {}
+        const b = latest.current.block
+        popupRef.current?.remove()
+        popupRef.current = new Popup({ offset: 8, closeButton: true, maxWidth: '240px', className: 'wg-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div class="pop"><h4>🚌 ${escapeHtml(String(p.name ?? 'Halte'))}</h4>
+             <p>±${p[b]} keberangkatan terjadwal pada blok ${escapeHtml(blockLabel(b))} (hari kerja).</p>
+             <small>${p.jak === 1 ? 'Dilayani JakLingko/Mikrotrans' : 'Halte BRT/non-BRT TransJakarta'} · GTFS resmi TransJakarta</small></div>`,
+          )
+          .addTo(map)
+      })
+      map.on('mouseenter', 'stops-dots', () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+      map.on('mouseleave', 'stops-dots', () => {
+        map.getCanvas().style.cursor = ''
       })
     }
 
-    if (!map.getSource(SRC_PTS)) {
-      map.addSource(SRC_PTS, { type: 'geojson', data: latest.current.ptsFC })
+    if (!map.getSource('hex')) {
+      const cur = latest.current.fcByBlock[latest.current.block]
+      map.addSource('hex', { type: 'geojson', data: cur.hex })
+      map.addSource('heat-pts', { type: 'geojson', data: cur.heat })
 
+      // Mode DENYUT, zoom jauh: permukaan panas halus — pola kota, bukan konfeti.
       map.addLayer({
-        id: 'pts-heat',
+        id: 'hex-heat',
         type: 'heatmap',
-        source: SRC_PTS,
-        maxzoom: 15,
+        source: 'heat-pts',
+        maxzoom: HEAT_FADE_END,
         paint: {
-          'heatmap-weight': ['interpolate', ['linear'], ['get', 'relevance'], 0, 0.3, 1, 1],
-          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 9, 1, 15, 3],
+          'heatmap-weight': ['interpolate', ['linear'], ['get', 'w'], 0, 0, 1, 0.35, 4, 1],
+          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 10, 0.9, 13, 1.6],
+          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 10, 20, 13, 46],
           'heatmap-color': [
             'interpolate', ['linear'], ['heatmap-density'],
             0, 'rgba(0,0,0,0)',
-            0.2, 'rgba(56,189,248,0.35)',
-            0.45, 'rgba(129,230,217,0.55)',
-            0.7, 'rgba(250,204,21,0.7)',
-            1, 'rgba(239,68,68,0.85)',
+            0.15, 'rgba(254,243,199,0.55)',
+            0.4, 'rgba(253,186,116,0.7)',
+            0.7, 'rgba(248,113,113,0.8)',
+            1, 'rgba(185,28,28,0.9)',
           ],
-          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 9, 18, 15, 55],
-          'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 13, 0.9, 15, 0],
-        },
-      })
-
-      map.addLayer({
-        id: 'pts-halo',
-        type: 'circle',
-        source: SRC_PTS,
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 7, 16, 18],
-          'circle-color': ['get', 'color'],
-          'circle-opacity': 0.16,
-        },
-      })
-
-      map.addLayer({
-        id: 'pts-circle',
-        type: 'circle',
-        source: SRC_PTS,
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 4, 16, 9],
-          'circle-color': ['get', 'color'],
-          'circle-stroke-width': ['case', ['==', ['get', 'highlighted'], 1], 2.5, 1.2],
-          'circle-stroke-color': [
-            'case',
-            ['==', ['get', 'highlighted'], 1],
-            '#0f172a',
-            '#ffffff',
+          'heatmap-opacity': [
+            'interpolate', ['linear'], ['zoom'],
+            HEAT_FADE_START, 0.9,
+            HEAT_FADE_END, 0,
           ],
         },
       })
 
+      // Mode DENYUT, zoom dekat: sel heksagon untuk inspeksi per kawasan.
       map.addLayer({
-        id: 'pts-selected',
-        type: 'circle',
-        source: SRC_PTS,
-        filter: ['==', ['get', 'id'], '___none___'],
+        id: 'hex-denyut',
+        type: 'fill',
+        source: 'hex',
+        minzoom: HEX_MIN_ZOOM,
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 12, 16, 24],
-          'circle-color': 'rgba(0,0,0,0)',
-          'circle-stroke-width': 3,
-          'circle-stroke-color': '#0f172a',
+          'fill-color': [
+            'interpolate', ['linear'], ['get', 'percentile'],
+            0, '#fef3c7',
+            50, '#fdba74',
+            75, '#f87171',
+            100, '#b91c1c',
+          ],
+          'fill-opacity': 0.65,
         },
       })
+      map.addLayer({
+        id: 'hex-denyut-line',
+        type: 'line',
+        source: 'hex',
+        minzoom: HEX_MIN_ZOOM,
+        paint: { 'line-color': '#ffffff', 'line-width': 0.7, 'line-opacity': 0.5 },
+      })
 
-      map.on('click', 'pts-circle', (e) => {
-        const f = e.features?.[0]
-        if (f) latest.current.onSelect(String(f.properties?.id))
+      // Mode KESENJANGAN: hanya sel bermasalah yang berwarna, sisanya redup.
+      map.addLayer({
+        id: 'hex-gap-ghost',
+        type: 'fill',
+        source: 'hex',
+        filter: ['==', ['get', 'gap'], ''],
+        paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.1 },
       })
-      map.on('mouseenter', 'pts-circle', () => {
-        map.getCanvas().style.cursor = 'pointer'
+      map.addLayer({
+        id: 'hex-gap-fill',
+        type: 'fill',
+        source: 'hex',
+        filter: ['!=', ['get', 'gap'], ''],
+        paint: {
+          'fill-color': ['case', ['==', ['get', 'gap'], 'jangkauan'], '#dc2626', '#f97316'],
+          'fill-opacity': 0.7,
+        },
       })
-      map.on('mouseleave', 'pts-circle', () => {
-        map.getCanvas().style.cursor = ''
+      map.addLayer({
+        id: 'hex-gap-line',
+        type: 'line',
+        source: 'hex',
+        filter: ['!=', ['get', 'gap'], ''],
+        paint: { 'line-color': '#7f1d1d', 'line-width': 1.2, 'line-opacity': 0.7 },
       })
-      map.on('click', (e) => {
-        const hits = map.queryRenderedFeatures(e.point, { layers: ['pts-circle'] })
-        if (!hits.length) latest.current.onSelect(null)
-      })
+
+      // Klik sel → popup ringkas di tempat (tidak membajak panel kanan).
+      const clickable = ['hex-denyut', 'hex-gap-fill', 'hex-gap-ghost']
+      for (const layerId of clickable) {
+        map.on('click', layerId, (e) => {
+          const f = e.features?.[0]
+          if (!f) return
+          const cell = latest.current.model.cellByKey.get(String(f.properties?.key))
+          if (!cell) return
+          const hb = cell.blocks[latest.current.block]
+          const clsLabel =
+            hb.cls === 'ramai'
+              ? `🔴 Ramai — lebih hidup dari ${hb.percentile}% kawasan lain`
+              : hb.cls === 'sedang'
+                ? '🟠 Sedang'
+                : hb.cls === 'sepi'
+                  ? '🔵 Cenderung sepi'
+                  : '⚪ Belum ada data'
+          const gapLabel =
+            hb.gap === 'jangkauan'
+              ? `<p class="pop-gap">Ramai tapi <b>tidak ada stasiun/halte dalam 1 km</b> (layanan terdekat ${formatDistance(cell.nearestTransitM)}).</p>`
+              : hb.gap === 'jadwal'
+                ? `<p class="pop-gap">Ramai tapi <b>frekuensi rendah</b>: ±${hb.railDep} keberangkatan rel, ±${hb.busDep} bus pada blok ini.</p>`
+                : ''
+          const ramaiN = cell.evidence.filter((ev) => ev.crowd === 'ramai').length
+          const sepiN = cell.evidence.filter((ev) => ev.crowd === 'sepi').length
+          const bukti = cell.hasObservation
+            ? `${cell.evidence.length} laporan warga${ramaiN || sepiN ? ` (${ramaiN} menyebut ramai, ${sepiN} sepi)` : ''}`
+            : 'belum ada laporan lapangan'
+          popupRef.current?.remove()
+          popupRef.current = new Popup({ offset: 8, closeButton: true, maxWidth: '260px', className: 'wg-popup' })
+            .setLngLat(e.lngLat)
+            .setHTML(
+              `<div class="pop">
+                 <h4>${clsLabel}</h4>
+                 <p>Blok ${escapeHtml(blockLabel(latest.current.block))} · ${escapeHtml(bukti)}.</p>
+                 ${gapLabel}
+                 <small>${formatDistance(cell.nearestNodeDistM)} dari ${escapeHtml(cell.nearestNode.name)}</small>
+               </div>`,
+            )
+            .addTo(map)
+        })
+        map.on('mouseenter', layerId, () => {
+          map.getCanvas().style.cursor = 'pointer'
+        })
+        map.on('mouseleave', layerId, () => {
+          map.getCanvas().style.cursor = ''
+        })
+      }
     }
 
-    applyVisibility(map)
+    applyBlock(map)
+    applyMode(map)
+    applyRail(map)
   }
 
-  function applyVisibility(map: MLMap) {
-    const vis = latest.current.layers
+  function applyBlock(map: MLMap) {
+    const cur = latest.current.fcByBlock[latest.current.block]
+    ;(map.getSource('hex') as GeoJSONSource | undefined)?.setData(cur.hex)
+    ;(map.getSource('heat-pts') as GeoJSONSource | undefined)?.setData(cur.heat)
+  }
+
+  function applyMode(map: MLMap) {
+    const denyut = latest.current.mode === 'denyut'
     const set = (id: string, on: boolean) => {
       if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
     }
-    set('pts-heat', vis.heatmap)
-    set('pts-halo', vis.points)
-    set('pts-circle', vis.points)
-    set('pts-selected', vis.points)
-    set('radius-fill', vis.radius)
-    set('radius-line', vis.radius)
-    set('links-line', vis.links)
-    markersRef.current.forEach((m) => {
-      m.getElement().style.display = vis.nodes ? '' : 'none'
-    })
+    set('hex-heat', denyut)
+    set('hex-denyut', denyut)
+    set('hex-denyut-line', denyut)
+    set('hex-gap-ghost', !denyut)
+    set('hex-gap-fill', !denyut)
+    set('hex-gap-line', !denyut)
   }
 
-  /* ── Marker simpul transit (HTML, biar bisa dilabeli tanpa font glyph) ─── */
+  function applyRail(map: MLMap) {
+    const on = latest.current.showRail
+    for (const id of ['rail-casing', 'rail-ka', 'rail-kcic']) {
+      if (!map.getLayer(id)) continue
+      map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
+    }
+    if (map.getLayer('stops-dots'))
+      map.setLayoutProperty('stops-dots', 'visibility', latest.current.showStops ? 'visible' : 'none')
+  }
+
+  /* ── Marker simpul: nama selalu; skor layanan hanya di mode kesenjangan ── */
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     markersRef.current.forEach((m) => m.remove())
-    markersRef.current = nodeStats.map((n) => {
-      const el = document.createElement('button')
-      el.type = 'button'
-      el.className = `node-marker node-${n.node.kind}${n.count === 0 ? ' node-silent' : ''}`
-      el.innerHTML = `<span class="node-dot"></span><span class="node-label">${escapeHtml(
-        n.node.name.replace(/^Stasiun |^Terminal /, ''),
-      )}<em>${n.count}</em></span>`
-      el.title = `${n.node.name} — ${NODE_KIND_LABEL[n.node.kind]} · Indeks Denyut ${n.pulseIndex}/100`
-      el.addEventListener('click', (ev) => {
-        ev.stopPropagation()
-        onSelectNode(n.node.id)
-      })
-      if (!layers.nodes) el.style.display = 'none'
+    markersRef.current = model.nodes.map((n) => {
+      const dep = n.depByBlock?.[block] ?? 0
+      const service = Math.min(1, dep / model.refDep.rail[block])
+      const el = document.createElement('div')
+      el.className = `simpul-node simpul-node-${n.kind}`
+      const badge = mode === 'gap' ? `<em class="${service <= 0.35 ? 'low' : ''}">${dep}×</em>` : ''
+      el.innerHTML = `<span class="simpul-node-dot"></span><span class="simpul-node-label">${escapeHtml(
+        n.name.replace(/^Stasiun (MRT |LRT )?|^Terminal /, ''),
+      )}${badge}</span>`
+      el.title = `${n.name}${n.lines?.length ? ` (lin ${n.lines.join(', ')})` : ''} — ±${dep} keberangkatan terjadwal pada blok ini · ${n.scheduleSource ?? ''}`
       return new Marker({ element: el, anchor: 'center' })
-        .setLngLat([n.node.lon, n.node.lat])
+        .setLngLat([n.lon, n.lat])
         .addTo(map)
     })
     return () => {
       markersRef.current.forEach((m) => m.remove())
       markersRef.current = []
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodeStats])
-
-  /* ── Sinkronisasi data & visibility ───────────────────────────────────── */
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current) return
-    ;(map.getSource(SRC_PTS) as GeoJSONSource | undefined)?.setData(ptsFC)
-    ;(map.getSource(SRC_LINKS) as GeoJSONSource | undefined)?.setData(linksFC)
-    ;(map.getSource(SRC_RADIUS) as GeoJSONSource | undefined)?.setData(radiusFC)
-  }, [ptsFC, linksFC, radiusFC])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (map && readyRef.current) applyVisibility(map)
      
-  }, [layers])
+  }, [model, block, mode])
 
-  /** Ganti dataset → rapatkan viewport ke sebaran datanya (bisa beda kota). */
+  /* ── Marker rekomendasi bernomor — nomor di peta = nomor di kartu ─────── */
   useEffect(() => {
     const map = mapRef.current
-    const b = boundsOf(allObservations)
-    if (!map || !b) return
-    map.fitBounds(b, { padding: 70, duration: 800, maxZoom: 14 })
-    popupRef.current?.remove()
-  }, [dataset.id, allObservations])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !readyRef.current) return
-    if (map.getLayer('pts-selected')) {
-      map.setFilter('pts-selected', ['==', ['get', 'id'], selectedId ?? '___none___'])
+    if (!map) return
+    recMarkersRef.current.forEach((m) => m.remove())
+    if (mode !== 'gap') {
+      recMarkersRef.current = []
+      return
     }
-    popupRef.current?.remove()
-    if (!selectedId) return
-    const o = observations.find((x) => x.id === selectedId)
-    if (!o) return
-    const cat = categoryOf(dataset, o.categoryId)
-    popupRef.current = new Popup({
-      offset: 14,
-      closeButton: false,
-      maxWidth: '260px',
-      className: 'wg-popup',
+    recMarkersRef.current = recs.map((r, i) => {
+      const el = document.createElement('button')
+      el.type = 'button'
+      el.className = `simpul-rec-badge simpul-rec-badge-${r.kind}`
+      el.textContent = `${i + 1}`
+      el.title = r.title
+      el.addEventListener('click', (ev) => {
+        ev.stopPropagation()
+        onRecClick(r, i)
+      })
+      return new Marker({ element: el, anchor: 'center' })
+        .setLngLat([r.focus.lon, r.focus.lat])
+        .addTo(map)
     })
-      .setLngLat([o.lon, o.lat])
-      .setHTML(
-        `<div class="pop">
-           <span class="pop-theme" style="background:${cat.color}">${escapeHtml(cat.label)}</span>
-           <h4>${escapeHtml(o.title)}</h4>
-           ${o.subtitle ? `<p>${escapeHtml(o.subtitle)}</p>` : ''}
-           <small>${formatDistance(o.distanceM)} dari ${escapeHtml(o.nearestNodeName)}</small>
-         </div>`,
-      )
-      .addTo(map)
-  }, [selectedId, observations, dataset])
+    return () => {
+      recMarkersRef.current.forEach((m) => m.remove())
+      recMarkersRef.current = []
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, recs, mode])
+
+  /* ── Sinkronisasi ─────────────────────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current
+    if (map && readyRef.current) applyBlock(map)
+     
+  }, [block, fcByBlock])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map && readyRef.current) applyMode(map)
+     
+  }, [mode])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map && readyRef.current) applyRail(map)
+     
+  }, [showRail, showStops])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map && readyRef.current)
+      (map.getSource('stops') as GeoJSONSource | undefined)?.setData(stopsFC)
+  }, [stopsFC])
 
   useEffect(() => {
     const map = mapRef.current

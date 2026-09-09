@@ -92,7 +92,7 @@ export function askSimpul(
   } else if (wantsGap) {
     const jangkauan = recs.filter((r) => r.kind === 'jangkauan')
     answer = jangkauan.length
-      ? `Ada ${jangkauan.length} kantong "ramai tapi tak terjangkau" (lebih dari 2 km dari semua simpul). Terbesar: ${jangkauan[0].title.toLowerCase()}. ${jangkauan[0].body}`
+      ? `Ada ${jangkauan.length} kantong "ramai tapi tak terjangkau" (tidak ada stasiun/halte dalam 1 km). Terbesar: ${jangkauan[0].title.toLowerCase()}. ${jangkauan[0].body}`
       : 'Tidak ditemukan kantong ramai yang benar-benar di luar jangkauan pada data saat ini.'
     if (jangkauan[0]) {
       focus = jangkauan[0].focus
@@ -126,9 +126,7 @@ export function askSimpul(
   } else if (/ringkas|rangkum|gambaran|overview|kondisi/.test(q) || setBlock) {
     const s = summaries.reduce((a, b) => (b.totalPoints > a.totalPoints ? b : a))
     const gapTotal = summaries.reduce((a, b) => a + b.gapJadwal + b.gapJangkauan, 0)
-    answer = `Dari ${model.counts.properties} titik usaha/hunian + ${
-      model.counts.strukUsed
-    } transaksi + ${model.counts.activities + model.counts.communityTimed} laporan warga: blok paling hidup se-kota adalah ${blockMeta(
+    answer = `Dari ${model.counts.activities.toLocaleString('id-ID')} laporan warga Community Maps: blok paling hidup se-kota adalah ${blockMeta(
       s.block,
     ).label} (${blockMeta(s.block).range}). Total ${gapTotal} sel×blok menunjukkan kesenjangan (ramai tapi layanan rendah). Geser slider untuk melihat kota "bernapas", atau tanya "rekomendasinya apa".`
     facts.push(
@@ -138,7 +136,7 @@ export function askSimpul(
     trace.push('Rute: ringkasan kota')
   } else {
     answer =
-      'Belum paham maksudnya. Yang bisa dijawab: "kawasan mana yang ramai malam hari", "bagaimana sekitar Kiaracondong", "mana kantong yang tak terjangkau", "apa rekomendasinya", atau "ringkas kondisinya".'
+      'Belum paham maksudnya. Yang bisa dijawab: "kawasan mana yang ramai malam hari", "bagaimana sekitar Tanah Abang", "mana kantong yang tak terjangkau", "apa rekomendasinya", atau "ringkas kondisinya".'
     trace.push('Rute: fallback')
   }
 
@@ -149,7 +147,7 @@ export function askSimpul(
 export const SIMPUL_SUGGESTIONS = [
   'Ringkas kondisinya',
   'Kawasan mana yang masih hidup malam hari?',
-  'Bagaimana sekitar Kiaracondong?',
+  'Bagaimana sekitar Tanah Abang?',
   'Mana kantong ramai yang tak terjangkau?',
   'Apa rekomendasinya untuk KAI?',
 ]

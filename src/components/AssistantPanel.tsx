@@ -1,34 +1,37 @@
 import { useRef, useState } from 'react'
-import { ask, suggestedQuestions, type AIContext, type AIResponse } from '../lib/ai'
-import type { Filters } from '../lib/types'
 
-interface Props {
-  ctx: AIContext
-  onApply: (patch: Partial<Filters>, focus: AIResponse['focus']) => void
-}
+import { askSimpul, SIMPUL_SUGGESTIONS, type SimpulAnswer } from '../lib/assistant'
+import type { SimpulModel } from '../lib/engine'
+import type { Recommendation } from '../lib/recommend'
+
+/* ── Panel Asisten ────────────────────────────────────────────────────────── */
 
 interface Turn {
   q: string
-  r: AIResponse
+  r: SimpulAnswer
 }
 
-export default function AIAssistant({ ctx, onApply }: Props) {
+export default function AssistantPanel({
+  model,
+  recs,
+  onApply,
+}: {
+  model: SimpulModel
+  recs: Recommendation[]
+  onApply: (r: SimpulAnswer) => void
+}) {
   const [input, setInput] = useState('')
   const [turns, setTurns] = useState<Turn[]>([])
   const [openTrace, setOpenTrace] = useState<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // Riwayat percakapan direset saat dataset berganti — dilakukan lewat `key`
-  // di App.tsx (komponen di-remount), bukan lewat effect yang memanggil
-  // setState dan memicu render berantai.
-
   const submit = (q: string) => {
     const question = q.trim()
     if (!question) return
-    const r = ask(question, ctx)
+    const r = askSimpul(question, model, recs)
     setTurns((t) => [...t, { q: question, r }])
     setInput('')
-    onApply(r.filters, r.focus)
+    onApply(r)
     requestAnimationFrame(() => {
       listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
     })
@@ -36,24 +39,18 @@ export default function AIAssistant({ ctx, onApply }: Props) {
 
   return (
     <div className="panel ai-panel">
-      <div className="panel-head">
-        <h2>Asisten Spasial</h2>
-        <span className="count-pill ai-pill">AI di dalam peta</span>
-      </div>
-
       <p className="ai-disclaimer">
-        Jawaban di bawah <b>tidak pernah mengarang angka</b> — semuanya ditarik dari
-        hasil analisis yang sama dengan yang dipetakan. Tiap jawaban juga mengubah
-        filter peta, jadi hasilnya bisa langsung dilihat, bukan cuma dibaca.
-        Sekarang menjawab untuk dataset <b>{ctx.dataset.label}</b>.
+        Asisten ini <b>tidak pernah mengarang angka</b> — semua ditarik dari hitungan yang sama
+        dengan petanya, dan jawabannya langsung menggerakkan peta. Versi ini masih berbasis aturan;
+        rencana LLM ada di tab Metode.
       </p>
 
       <div className="ai-log" ref={listRef}>
         {turns.length === 0 && (
           <div className="ai-empty">
-            <p>Coba salah satu:</p>
+            <p>Coba tanya:</p>
             <div className="chips">
-              {suggestedQuestions(ctx.dataset, ctx.nodeStats).map((s) => (
+              {SIMPUL_SUGGESTIONS.map((s) => (
                 <button key={s} type="button" className="chip suggest" onClick={() => submit(s)}>
                   {s}
                 </button>
@@ -61,15 +58,13 @@ export default function AIAssistant({ ctx, onApply }: Props) {
             </div>
           </div>
         )}
-
         {turns.map((t, i) => (
           <div key={i} className="ai-turn">
             <div className="ai-q">{t.q}</div>
             <div className="ai-a">
-              {t.r.answer.split('\n\n').map((para, j) => (
-                <p key={j}>{para}</p>
+              {t.r.answer.split('\n\n').map((p, j) => (
+                <p key={j}>{p}</p>
               ))}
-
               {t.r.facts.length > 0 && (
                 <div className="ai-facts">
                   {t.r.facts.map((f) => (
@@ -79,15 +74,9 @@ export default function AIAssistant({ ctx, onApply }: Props) {
                   ))}
                 </div>
               )}
-
-              <button
-                type="button"
-                className="link-btn"
-                onClick={() => setOpenTrace(openTrace === i ? null : i)}
-              >
+              <button type="button" className="link-btn" onClick={() => setOpenTrace(openTrace === i ? null : i)}>
                 {openTrace === i ? 'Sembunyikan' : 'Lihat'} jejak nalar
               </button>
-
               {openTrace === i && (
                 <ol className="ai-trace">
                   {t.r.trace.map((s, k) => (
@@ -110,8 +99,8 @@ export default function AIAssistant({ ctx, onApply }: Props) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Tanya soal peta ini…"
-          aria-label="Pertanyaan untuk asisten spasial"
+          placeholder="Tanya apa saja soal peta ini…"
+          aria-label="Pertanyaan untuk asisten SIMPUL"
         />
         <button type="submit" disabled={!input.trim()}>
           Tanya
@@ -120,3 +109,4 @@ export default function AIAssistant({ ctx, onApply }: Props) {
     </div>
   )
 }
+

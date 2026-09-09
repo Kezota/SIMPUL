@@ -10,7 +10,7 @@
  * akal untuk Jabodetabek (ribuan halte).
  */
 
-import type { TransitNode } from '../lib/types'
+import type { TransitNode } from './types'
 import { hexKey, hexNeighbors } from './hexgrid'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
 import type { HexCell, SimpulModel } from './engine'
@@ -25,7 +25,6 @@ export interface Recommendation {
   body: string
   /** Satu baris usulan konkret (jenis kandidat — tanpa angka armada). */
   action: string
-  accessNote: string | null
   facts: { label: string; value: string }[]
   focus: { lat: number; lon: number; zoom: number }
   block: BlockId | null
@@ -94,7 +93,6 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
       }
     }
     const evidence = cl.reduce((s, c) => s + c.evidence.length, 0)
-    const props = cl.reduce((s, c) => s + c.propertyCount, 0)
     const nearest = cl[0].nearestNode
     const avgNodeM = Math.round(cl.reduce((s, c) => s + c.nearestNodeDistM, 0) / cl.length)
     const avgTransitM = Math.round(cl.reduce((s, c) => s + c.nearestTransitM, 0) / cl.length)
@@ -107,7 +105,6 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
     const base = {
       id: `${kind}-${cl[0].key}`,
       kind,
-      accessNote: null,
       focus: { lat, lon, zoom: 13.5 },
       block: domBlock,
       confidence,
@@ -121,16 +118,14 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
         ...base,
         target: 'Dishub / operator feeder',
         title: `Kawasan ramai ${(avgTransitM / 1000).toFixed(1)} km dari layanan terdekat (arah ${shortName(nearest)})`,
-        body: `${cl.length} sel bersebelahan tergolong ramai (paling hidup blok ${blockLabel(domBlock)}), tetapi tidak ada stasiun maupun halte dalam jarak jalan kaki 1 km. ${
-          props ? `${props} titik usaha/hunian tercatat di dalamnya.` : `Bukti: ${evidence} pengamatan lapangan.`
-        }`,
+        body: `${cl.length} sel bersebelahan tergolong ramai (paling hidup blok ${blockLabel(domBlock)}), tetapi tidak ada stasiun maupun halte dalam jarak jalan kaki 1 km. Bukti: ${evidence} laporan lapangan.`,
         action: `Jenis kandidat: rute pengumpan / halte baru menuju ${nearest.name}.`,
         facts: [
           { label: 'Sel ramai', value: `${cl.length}` },
           { label: 'Bukti', value: `${evidence}` },
           { label: 'Ke layanan', value: `${(avgTransitM / 1000).toFixed(1)} km` },
         ],
-        score: cl.length * 3 + evidence + props / 4,
+        score: cl.length * 3 + evidence,
       }
     }
     return {

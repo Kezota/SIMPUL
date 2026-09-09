@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { TIME_BLOCKS, type BlockId } from './timeblocks'
+import { TIME_BLOCKS, type BlockId } from '../lib/timeblocks'
 
 /**
  * Penggeser blok waktu — kontrol utama SIMPUL. Tombol ▶ memutar blok otomatis

@@ -20,7 +20,7 @@
 
 import stationsRaw from '../data/stationsJabodetabek.json' with { type: 'json' }
 import tjStopsRaw from '../data/tjStops.json' with { type: 'json' }
-import type { NodeKind, TransitNode } from '../lib/types'
+import type { NodeKind, TransitNode } from './types'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
 
 /* ── Profil lintas rel ───────────────────────────────────────────────────── */
@@ -113,7 +113,6 @@ export function loadJabodetabekNodes(): TransitNode[] {
       id: s.id,
       name: `${KIND_LABEL[s.kind] ?? 'Stasiun'} ${s.name}`,
       kind: s.kind as NodeKind,
-      region: 'jabodetabek',
       lat: s.lat,
       lon: s.lon,
       serviceRadiusM: 1000,
