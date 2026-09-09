@@ -15,6 +15,8 @@ import TimeSlider from './components/TimeSlider'
 import AssistantPanel from './components/AssistantPanel'
 import MethodPanel from './components/MethodPanel'
 import RecPanel from './components/RecPanel'
+import StationDetail from './components/StationDetail'
+import type { TransitNode } from './lib/types'
 import type { BlockId } from './lib/timeblocks'
 import type { AssistantResult } from './lib/aiRun'
 
@@ -65,6 +67,8 @@ export default function App() {
   const [block, setBlock] = useState<BlockId>('sore')
   const [mode, setMode] = useState<MapMode>(role?.defaultMode ?? 'denyut')
   const [showRail, setShowRail] = useState(role?.defaultRail ?? true)
+  const [showNodes, setShowNodes] = useState(true)
+  const [detailNode, setDetailNode] = useState<TransitNode | null>(null)
   const [showTj, setShowTj] = useState(role?.defaultTj ?? false)
   const [showJak, setShowJak] = useState(role?.defaultJak ?? false)
   const [satellite, setSatellite] = useState(false)
@@ -226,12 +230,14 @@ export default function App() {
             block={block}
             mode={mode}
             showRail={showRail}
+            showNodes={showNodes}
             showTj={showTj}
             showJak={showJak}
             variant={variant}
             focus={focus}
             pin={pin}
             onRecClick={onRecMarkerClick}
+            onNodeClick={setDetailNode}
           />
 
           {isMobile && (
@@ -267,6 +273,16 @@ export default function App() {
               <div className="tool-group" role="group" aria-label="Lapisan peta">
                 <span className="tool-caption">Lapisan</span>
                 <div className="tool-row">
+                  <button
+                    type="button"
+                    className={`chip-toggle${showNodes ? ' on' : ''}`}
+                    aria-pressed={showNodes}
+                    onClick={() => setShowNodes(!showNodes)}
+                    title="Stasiun KRL/MRT/LRT & terminal. Klik stasiunnya untuk jadwal per blok dan kawasan sekitarnya."
+                  >
+                    <span className="chip-ico" aria-hidden="true">🚉</span>
+                    <span className="chip-txt">Stasiun</span>
+                  </button>
                   <button
                     type="button"
                     className={`chip-toggle${showRail ? ' on' : ''}`}
@@ -337,7 +353,7 @@ export default function App() {
                 <div className="gap-legend-row" title="Kawasan ramai, ada layanan, tetapi jadwalnya tipis pada blok ini">
                   <i style={{ background: '#f97316' }} /> Frekuensi rendah
                 </div>
-                <small>Nomor merah/oranye = kandidat di panel. Angka di stasiun = perkiraan kereta pada blok ini.</small>
+                <small>Nomor merah/oranye = kandidat di panel. Stasiun bertanda merah = jadwal tipis pada blok ini. Klik stasiun untuk detail.</small>
               </>
             )}
           </div>
@@ -385,6 +401,23 @@ export default function App() {
       )}
 
       {guideOpen && <Guide role={role} onClose={closeGuide} />}
+      {detailNode && (
+        <StationDetail
+          node={detailNode}
+          model={model}
+          recs={recs}
+          block={block}
+          onClose={() => setDetailNode(null)}
+          onFocus={() => {
+            flyTo(detailNode.lat, detailNode.lon, 14)
+            setDetailNode(null)
+          }}
+          onOpenRec={(r) => {
+            setDetailNode(null)
+            onRecMarkerClick(r)
+          }}
+        />
+      )}
     </div>
   )
 }

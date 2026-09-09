@@ -16,6 +16,7 @@ import { hexPolygon } from '../lib/hexgrid'
 import { TIME_BLOCKS, type BlockId } from '../lib/timeblocks'
 import { REGION, type SimpulModel } from '../lib/engine'
 import type { Recommendation } from '../lib/recommend'
+import type { TransitNode } from '../lib/types'
 
 /** Dua cerita, dua tampilan — supaya layar tidak menceritakan semuanya sekaligus. */
 export type MapMode = 'denyut' | 'gap'
@@ -26,6 +27,8 @@ interface Props {
   block: BlockId
   mode: MapMode
   showRail: boolean
+  /** Marker stasiun/terminal. */
+  showNodes: boolean
   /** Halte BRT/non-BRT TransJakarta. */
   showTj: boolean
   /** Halte JakLingko / Mikrotrans (jumlahnya ribuan — dipisah supaya peta tidak penuh titik). */
@@ -35,6 +38,7 @@ interface Props {
   /** Penanda hasil pencarian lokasi. */
   pin: { lat: number; lon: number; label: string } | null
   onRecClick: (rec: Recommendation, index: number) => void
+  onNodeClick: (node: TransitNode) => void
 }
 
 const escapeHtml = (s: string) =>
@@ -61,12 +65,14 @@ export default function MapView({
   block,
   mode,
   showRail,
+  showNodes,
   showTj,
   showJak,
   variant,
   focus,
   pin,
   onRecClick,
+  onNodeClick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MLMap | null>(null)
@@ -144,8 +150,8 @@ export default function MapView({
     return m
   }, [recs])
 
-  const latest = useRef({ fcByBlock, stopsFC, block, mode, model, showRail, showTj, showJak, recByCell, onRecClick })
-  latest.current = { fcByBlock, stopsFC, block, mode, model, showRail, showTj, showJak, recByCell, onRecClick }
+  const latest = useRef({ fcByBlock, stopsFC, block, mode, model, showRail, showTj, showJak, recByCell, onRecClick, onNodeClick })
+  latest.current = { fcByBlock, stopsFC, block, mode, model, showRail, showTj, showJak, recByCell, onRecClick, onNodeClick }
 
   /* ── Init peta (sekali) ────────────────────────────────────────────────── */
   useEffect(() => {
@@ -478,21 +484,30 @@ export default function MapView({
     if (map.getLayer('stops-jak')) map.setLayoutProperty('stops-jak', 'visibility', latest.current.showJak ? 'visible' : 'none')
   }
 
-  /* ── Marker simpul: nama selalu; skor layanan hanya di mode kesenjangan ── */
+  /* ── Marker simpul: nama saja; detail (jadwal, kawasan) muncul saat diklik ── */
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     markersRef.current.forEach((m) => m.remove())
+    if (!showNodes) {
+      markersRef.current = []
+      return
+    }
     markersRef.current = model.nodes.map((n) => {
       const dep = n.depByBlock?.[block] ?? 0
       const service = Math.min(1, dep / model.refDep.rail[block])
-      const el = document.createElement('div')
-      el.className = `simpul-node simpul-node-${n.kind}`
-      const badge = mode === 'gap' ? `<em class="${service <= 0.35 ? 'low' : ''}" title="±${dep} keberangkatan kereta terjadwal pada blok ini${service <= 0.35 ? ' — jadwal tipis' : ''}">${dep} kereta</em>` : ''
+      const el = document.createElement('button')
+      el.type = 'button'
+      el.className = `simpul-node simpul-node-${n.kind}${mode === 'gap' && service <= 0.35 ? ' low' : ''}`
       el.innerHTML = `<span class="simpul-node-dot"></span><span class="simpul-node-label">${escapeHtml(
         n.name.replace(/^Stasiun (MRT |LRT )?|^Terminal /, ''),
-      )}${badge}</span>`
-      el.title = `${n.name}${n.lines?.length ? ` (lin ${n.lines.join(', ')})` : ''} — ±${dep} keberangkatan terjadwal pada blok ini · ${n.scheduleSource ?? ''}`
+      )}</span>`
+      el.title = `${n.name} — klik untuk jadwal & kawasan sekitarnya`
+      el.setAttribute('aria-label', el.title)
+      el.addEventListener('click', (e) => {
+        e.stopPropagation()
+        latest.current.onNodeClick(n)
+      })
       return new Marker({ element: el, anchor: 'center' })
         .setLngLat([n.lon, n.lat])
         .addTo(map)
@@ -502,7 +517,7 @@ export default function MapView({
       markersRef.current = []
     }
      
-  }, [model, block, mode])
+  }, [model, block, mode, showNodes])
 
   /* ── Marker rekomendasi bernomor — nomor di peta = nomor di kartu ─────── */
   useEffect(() => {
