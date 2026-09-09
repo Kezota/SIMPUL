@@ -110,9 +110,20 @@ export default function MethodPanel({ model, feedStatus }: { model: SimpulModel;
             penumpang operator tinggal masuk sebagai pengkalibrasi kalau tersedia.
           </li>
           <li>
-            Asisten "Tanya" masih berbasis aturan. Rencana: LLM dengan <i>tool use</i> di backend — model
-            memilih alat (ringkasan blok, daftar kandidat, profil kawasan) dan merangkai kalimat, angka
-            tetap dari mesin hitung ini.
+            Asisten "Tanya AI" = Gemini dengan <i>function calling</i>: model hanya memilih alat
+            (ringkasan kota, sel ramai, daftar/detail/banding kandidat, profil kawasan, gerakkan peta) dan
+            merangkai kalimat; setiap angka dijalankan oleh mesin hitung ini di browser. Tanpa kunci
+            API, panel jatuh ke mode aturan.
+          </li>
+          <li>
+            Pencarian lokasi: stasiun, halte, dan kandidat dicari lokal; nama tempat lain lewat geocoder
+            Nominatim (OpenStreetMap), dibatasi kotak Jabodetabek.
+          </li>
+          <li>
+            Peringkat kandidat bukan urutan investasi. Skor = 3 × sel + bukti (tak terjangkau) atau 2 × sel
+            + bukti + 5 × (1 − skor layanan) (frekuensi rendah): kantong yang lebih luas, lebih banyak
+            laporannya, dan layanannya lebih tipis naik lebih dulu. Login peran hanya menyaring kandidat mana
+            yang ditampilkan lebih dulu — angkanya sama untuk semua peran.
           </li>
         </ul>
       </section>

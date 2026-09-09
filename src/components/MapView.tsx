@@ -26,9 +26,14 @@ interface Props {
   block: BlockId
   mode: MapMode
   showRail: boolean
-  showStops: boolean
+  /** Halte BRT/non-BRT TransJakarta. */
+  showTj: boolean
+  /** Halte JakLingko / Mikrotrans (jumlahnya ribuan — dipisah supaya peta tidak penuh titik). */
+  showJak: boolean
   variant: BasemapVariant
   focus: { lat: number; lon: number; zoom: number; nonce: number } | null
+  /** Penanda hasil pencarian lokasi. */
+  pin: { lat: number; lon: number; label: string } | null
   onRecClick: (rec: Recommendation, index: number) => void
 }
 
@@ -56,9 +61,11 @@ export default function MapView({
   block,
   mode,
   showRail,
-  showStops,
+  showTj,
+  showJak,
   variant,
   focus,
+  pin,
   onRecClick,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -66,6 +73,7 @@ export default function MapView({
   const markersRef = useRef<Marker[]>([])
   const recMarkersRef = useRef<Marker[]>([])
   const popupRef = useRef<Popup | null>(null)
+  const pinRef = useRef<Marker | null>(null)
   const readyRef = useRef(false)
 
   /** FeatureCollection hex + titik pusat (untuk heatmap), per blok. */
@@ -129,8 +137,15 @@ export default function MapView({
     [model],
   )
 
-  const latest = useRef({ fcByBlock, stopsFC, block, mode, model, showRail, showStops })
-  latest.current = { fcByBlock, stopsFC, block, mode, model, showRail, showStops }
+  /** sel → kandidat (nomor & objek) supaya popup sel bisa menunjuk kartunya. */
+  const recByCell = useMemo(() => {
+    const m = new Map<string, { rec: Recommendation; index: number }>()
+    recs.forEach((rec, index) => rec.cellKeys.forEach((k) => m.set(k, { rec, index })))
+    return m
+  }, [recs])
+
+  const latest = useRef({ fcByBlock, stopsFC, block, mode, model, showRail, showTj, showJak, recByCell, onRecClick })
+  latest.current = { fcByBlock, stopsFC, block, mode, model, showRail, showTj, showJak, recByCell, onRecClick }
 
   /* ── Init peta (sekali) ────────────────────────────────────────────────── */
   useEffect(() => {
@@ -172,6 +187,7 @@ export default function MapView({
       ro.disconnect()
       markersRef.current.forEach((m) => m.remove())
       recMarkersRef.current.forEach((m) => m.remove())
+      pinRef.current?.remove()
       popupRef.current?.remove()
       readyRef.current = false
       map.remove()
@@ -212,20 +228,36 @@ export default function MapView({
 
     if (!map.getSource('stops')) {
       map.addSource('stops', { type: 'geojson', data: latest.current.stopsFC })
+      // Dua layer dari satu sumber: TransJakarta (biru tua, lebih besar) dan JakLingko (biru muda, kecil).
       map.addLayer({
-        id: 'stops-dots',
+        id: 'stops-tj',
         type: 'circle',
         source: 'stops',
-        minzoom: 11,
+        filter: ['==', ['get', 'jak'], 0],
+        minzoom: 10.5,
         paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 1.6, 14, 4.5],
-          'circle-color': ['case', ['==', ['get', 'jak'], 1], '#0ea5e9', '#1d4ed8'],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 2.2, 14, 5.5],
+          'circle-color': '#1d4ed8',
           'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 0.3, 14, 1],
-          'circle-opacity': 0.85,
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 0.5, 14, 1.2],
+          'circle-opacity': 0.9,
         },
       })
-      map.on('click', 'stops-dots', (e) => {
+      map.addLayer({
+        id: 'stops-jak',
+        type: 'circle',
+        source: 'stops',
+        filter: ['==', ['get', 'jak'], 1],
+        minzoom: 12,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 1.4, 15, 4],
+          'circle-color': '#0ea5e9',
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 12, 0.3, 15, 1],
+          'circle-opacity': 0.8,
+        },
+      })
+      for (const id of ['stops-tj', 'stops-jak']) map.on('click', id, (e) => {
         const f = e.features?.[0]
         if (!f) return
         const p = f.properties ?? {}
@@ -234,18 +266,21 @@ export default function MapView({
         popupRef.current = new Popup({ offset: 8, closeButton: true, maxWidth: '240px', className: 'wg-popup' })
           .setLngLat(e.lngLat)
           .setHTML(
-            `<div class="pop"><h4>🚌 ${escapeHtml(String(p.name ?? 'Halte'))}</h4>
-             <p>±${p[b]} keberangkatan terjadwal pada blok ${escapeHtml(blockLabel(b))} (hari kerja).</p>
-             <small>${p.jak === 1 ? 'Dilayani JakLingko/Mikrotrans' : 'Halte BRT/non-BRT TransJakarta'} · GTFS resmi TransJakarta</small></div>`,
+            `<div class="pop"><small class="pop-kicker">${p.jak === 1 ? 'Halte JakLingko / Mikrotrans' : 'Halte TransJakarta'}</small>
+             <h4>${escapeHtml(String(p.name ?? 'Halte'))}</h4>
+             <div class="pop-grid"><span><b>±${p[b]}</b><small>bus/blok ${escapeHtml(blockLabel(b))}</small></span></div>
+             <small>Jadwal hari kerja dari GTFS resmi TransJakarta.</small></div>`,
           )
           .addTo(map)
       })
-      map.on('mouseenter', 'stops-dots', () => {
-        map.getCanvas().style.cursor = 'pointer'
-      })
-      map.on('mouseleave', 'stops-dots', () => {
-        map.getCanvas().style.cursor = ''
-      })
+      for (const id of ['stops-tj', 'stops-jak']) {
+        map.on('mouseenter', id, () => {
+          map.getCanvas().style.cursor = 'pointer'
+        })
+        map.on('mouseleave', id, () => {
+          map.getCanvas().style.cursor = ''
+        })
+      }
     }
 
     if (!map.getSource('hex')) {
@@ -330,7 +365,7 @@ export default function MapView({
         paint: { 'line-color': '#7f1d1d', 'line-width': 1.2, 'line-opacity': 0.7 },
       })
 
-      // Klik sel → popup ringkas di tempat (tidak membajak panel kanan).
+      // Klik sel → popup yang menjawab "ini apa, kenapa, lalu saya harus apa".
       const clickable = ['hex-denyut', 'hex-gap-fill', 'hex-gap-ghost']
       for (const layerId of clickable) {
         map.on('click', layerId, (e) => {
@@ -338,38 +373,67 @@ export default function MapView({
           if (!f) return
           const cell = latest.current.model.cellByKey.get(String(f.properties?.key))
           if (!cell) return
-          const hb = cell.blocks[latest.current.block]
+          const b = latest.current.block
+          const hb = cell.blocks[b]
+          const hit = latest.current.recByCell.get(cell.key)
           const clsLabel =
             hb.cls === 'ramai'
-              ? `🔴 Ramai — lebih hidup dari ${hb.percentile}% kawasan lain`
+              ? `Ramai — lebih hidup dari ${hb.percentile}% kawasan lain`
               : hb.cls === 'sedang'
-                ? '🟠 Sedang'
+                ? 'Sedang'
                 : hb.cls === 'sepi'
-                  ? '🔵 Cenderung sepi'
-                  : '⚪ Belum ada data'
-          const gapLabel =
-            hb.gap === 'jangkauan'
-              ? `<p class="pop-gap">Ramai tapi <b>tidak ada stasiun/halte dalam 1 km</b> (layanan terdekat ${formatDistance(cell.nearestTransitM)}).</p>`
-              : hb.gap === 'jadwal'
-                ? `<p class="pop-gap">Ramai tapi <b>frekuensi rendah</b>: ±${hb.railDep} keberangkatan rel, ±${hb.busDep} bus pada blok ini.</p>`
-                : ''
+                  ? 'Cenderung sepi'
+                  : 'Tidak ada data'
+          const dot = hb.cls === 'ramai' ? '#dc2626' : hb.cls === 'sedang' ? '#f97316' : hb.cls === 'sepi' ? '#3b82f6' : '#94a3b8'
           const ramaiN = cell.evidence.filter((ev) => ev.crowd === 'ramai').length
-          const sepiN = cell.evidence.filter((ev) => ev.crowd === 'sepi').length
-          const bukti = cell.hasObservation
-            ? `${cell.evidence.length} laporan warga${ramaiN || sepiN ? ` (${ramaiN} menyebut ramai, ${sepiN} sepi)` : ''}`
-            : 'belum ada laporan lapangan'
+          const nearestKind = cell.nearestStop && cell.nearestStopDistM <= cell.nearestNodeDistM ? 'halte' : 'stasiun'
+          const nearestName = nearestKind === 'halte' ? cell.nearestStop!.name : cell.nearestNode.name
+
+          let why: string
+          let next: string
+          if (hb.gap === 'jangkauan') {
+            why = `Ramai, tetapi <b>tidak ada stasiun/halte dalam 1 km</b> — yang terdekat ${formatDistance(cell.nearestTransitM)}.`
+            next = 'Kandidat rute pengumpan / halte baru.'
+          } else if (hb.gap === 'jadwal') {
+            why = `Ramai, tetapi <b>jadwalnya tipis</b>: skor layanan ${Math.round(hb.service * 100)}/100 (±${hb.railDep} kereta, ±${hb.busDep} bus pada blok ini).`
+            next = 'Kandidat penambahan frekuensi pada blok ini.'
+          } else if (hb.cls === 'ramai') {
+            why = `Ramai dan <b>layanannya memadai</b> (skor ${Math.round(hb.service * 100)}/100). Bukan kandidat pada blok ini.`
+            next = 'Coba geser ke blok lain — kesenjangan bisa muncul pada jam berbeda.'
+          } else if (hb.cls) {
+            why = 'Belum tergolong ramai pada blok ini, jadi tidak dinilai kesenjangannya.'
+            next = 'Geser blok waktu untuk melihat kapan kawasan ini paling hidup.'
+          } else {
+            why = 'Tidak ada laporan warga pada blok ini. SIMPUL tidak menebak — ini bukan berarti sepi.'
+            next = 'Kawasan seperti ini prioritas untuk survei lapangan berikutnya.'
+          }
+          const action = hit
+            ? `<button type="button" class="pop-btn" data-rec="${escapeHtml(hit.rec.id)}">Buka kandidat #${hit.index + 1} →</button>`
+            : `<p class="pop-next">${next}</p>`
+
           popupRef.current?.remove()
-          popupRef.current = new Popup({ offset: 8, closeButton: true, maxWidth: '260px', className: 'wg-popup' })
+          const popup = new Popup({ offset: 8, closeButton: true, maxWidth: '300px', className: 'wg-popup' })
             .setLngLat(e.lngLat)
             .setHTML(
               `<div class="pop">
-                 <h4>${clsLabel}</h4>
-                 <p>Blok ${escapeHtml(blockLabel(latest.current.block))} · ${escapeHtml(bukti)}.</p>
-                 ${gapLabel}
-                 <small>${formatDistance(cell.nearestNodeDistM)} dari ${escapeHtml(cell.nearestNode.name)}</small>
+                 <small class="pop-kicker">Kawasan ±500 m · blok ${escapeHtml(blockLabel(b))}</small>
+                 <h4><i class="pop-dot" style="background:${dot}"></i>${clsLabel}</h4>
+                 <div class="pop-grid">
+                   <span><b>${cell.evidence.length}</b><small>laporan warga</small></span>
+                   <span><b>${ramaiN}</b><small>menyebut ramai</small></span>
+                   <span><b>${formatDistance(cell.nearestTransitM)}</b><small>ke ${nearestKind} terdekat</small></span>
+                 </div>
+                 <p>${why}</p>
+                 <small>Terdekat: ${escapeHtml(nearestName)}${nearestKind === 'halte' ? ` · stasiun ${formatDistance(cell.nearestNodeDistM)} (${escapeHtml(cell.nearestNode.name)})` : ''}</small>
+                 ${action}
                </div>`,
             )
             .addTo(map)
+          popupRef.current = popup
+          popup.getElement()?.querySelector<HTMLButtonElement>('.pop-btn')?.addEventListener('click', () => {
+            if (hit) latest.current.onRecClick(hit.rec, hit.index)
+            popup.remove()
+          })
         })
         map.on('mouseenter', layerId, () => {
           map.getCanvas().style.cursor = 'pointer'
@@ -410,8 +474,8 @@ export default function MapView({
       if (!map.getLayer(id)) continue
       map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
     }
-    if (map.getLayer('stops-dots'))
-      map.setLayoutProperty('stops-dots', 'visibility', latest.current.showStops ? 'visible' : 'none')
+    if (map.getLayer('stops-tj')) map.setLayoutProperty('stops-tj', 'visibility', latest.current.showTj ? 'visible' : 'none')
+    if (map.getLayer('stops-jak')) map.setLayoutProperty('stops-jak', 'visibility', latest.current.showJak ? 'visible' : 'none')
   }
 
   /* ── Marker simpul: nama selalu; skor layanan hanya di mode kesenjangan ── */
@@ -424,7 +488,7 @@ export default function MapView({
       const service = Math.min(1, dep / model.refDep.rail[block])
       const el = document.createElement('div')
       el.className = `simpul-node simpul-node-${n.kind}`
-      const badge = mode === 'gap' ? `<em class="${service <= 0.35 ? 'low' : ''}">${dep}×</em>` : ''
+      const badge = mode === 'gap' ? `<em class="${service <= 0.35 ? 'low' : ''}" title="±${dep} keberangkatan kereta terjadwal pada blok ini${service <= 0.35 ? ' — jadwal tipis' : ''}">${dep} kereta</em>` : ''
       el.innerHTML = `<span class="simpul-node-dot"></span><span class="simpul-node-label">${escapeHtml(
         n.name.replace(/^Stasiun (MRT |LRT )?|^Terminal /, ''),
       )}${badge}</span>`
@@ -487,7 +551,7 @@ export default function MapView({
     const map = mapRef.current
     if (map && readyRef.current) applyRail(map)
      
-  }, [showRail, showStops])
+  }, [showRail, showTj, showJak])
 
   useEffect(() => {
     const map = mapRef.current
@@ -500,6 +564,18 @@ export default function MapView({
     if (!map || !focus) return
     map.flyTo({ center: [focus.lon, focus.lat], zoom: focus.zoom, duration: 900 })
   }, [focus])
+
+  /* ── Penanda hasil pencarian ───────────────────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current
+    pinRef.current?.remove()
+    pinRef.current = null
+    if (!map || !pin) return
+    const el = document.createElement('div')
+    el.className = 'simpul-pin'
+    el.innerHTML = `<span class="simpul-pin-dot"></span><span class="simpul-pin-label">${escapeHtml(pin.label)}</span>`
+    pinRef.current = new Marker({ element: el, anchor: 'bottom' }).setLngLat([pin.lon, pin.lat]).addTo(map)
+  }, [pin])
 
   useEffect(() => {
     const map = mapRef.current

@@ -49,9 +49,15 @@ export function askSimpul(
   let setBlock: BlockId | null = detectBlock(q)
   let focus: SimpulAnswer['focus'] = null
 
+  // Bandingkan dua kandidat menurut nomor: "kenapa 1 di atas 2", "bandingkan 3 dan 4".
+  const pair = q.match(/(?:kandidat|nomor)?\s*(\d{1,2})\s*(?:dan|vs|di atas|dengan|&)\s*(?:kandidat|nomor)?\s*(\d{1,2})/)
+  const detailNo = !pair ? q.match(/kandidat\s*(?:nomor\s*)?(\d{1,2})/) : null
+
+  // Kata umum di nama stasiun yang bukan penanda kawasan ("Dukuh Atas", "Kota", "Bank ...").
+  const STOP = new Set(['atas', 'bawah', 'baru', 'lama', 'kota', 'pusat', 'bank', 'indonesia', 'raya', 'timur', 'barat', 'utara', 'selatan', 'jaya', 'bumi', 'syariah', 'dukuh', 'jakarta', 'mandiri', 'central', 'city'])
   const node = model.nodes.find((n) => {
     const words = n.name.toLowerCase().replace(/stasiun|terminal|whoosh/g, '').trim().split(/\s+/)
-    return words.some((w) => w.length > 3 && q.includes(w))
+    return words.some((w) => w.length > 3 && !STOP.has(w) && q.includes(w))
   })
   const wantsRec = /rekomendasi|saran|usul|prioritas|feeder|armada|frekuensi|jalur baru/.test(q)
   const wantsGap = /kesenjangan|gap|tak terjangkau|tidak terlayani|kantong/.test(q)
@@ -65,7 +71,29 @@ export function askSimpul(
   const summaries = summarizeBlocks(model)
   let answer: string
 
-  if (wantsRec) {
+  if (pair && recs[Number(pair[1]) - 1] && recs[Number(pair[2]) - 1]) {
+    const a = recs[Number(pair[1]) - 1]
+    const b = recs[Number(pair[2]) - 1]
+    const higher = a.score >= b.score ? a : b
+    const cmp = (x: number, y: number) => (x > y ? 'lebih banyak' : x < y ? 'lebih sedikit' : 'sama')
+    answer =
+      `Kandidat ${pair[1]} (${a.place}) skor ${a.score.toFixed(1)}, kandidat ${pair[2]} (${b.place}) skor ${b.score.toFixed(1)}. ` +
+      `Yang lebih tinggi: kandidat ${higher === a ? pair[1] : pair[2]}.\n\n` +
+      `Alasannya: kandidat ${pair[1]} punya ${a.cellKeys.length} sel ramai (${cmp(a.cellKeys.length, b.cellKeys.length)} dari ${b.cellKeys.length}) dan ${a.evidenceCount} laporan warga (${cmp(a.evidenceCount, b.evidenceCount)} dari ${b.evidenceCount}); keyakinan ${a.confidence} vs ${b.confidence}` +
+      (a.kind !== b.kind ? `; jenisnya berbeda (${a.kind === 'jangkauan' ? 'tak terjangkau' : 'frekuensi rendah'} vs ${b.kind === 'jangkauan' ? 'tak terjangkau' : 'frekuensi rendah'}), dan kantong tak terjangkau diberi bobot lebih besar` : '') +
+      `. Skor bukan perkiraan penumpang — hanya urutan bukti terkuat.`
+    focus = higher.focus
+    if (higher.block) setBlock = higher.block
+    facts.push({ label: `Skor #${pair[1]}`, value: a.score.toFixed(1) }, { label: `Skor #${pair[2]}`, value: b.score.toFixed(1) })
+    trace.push('Rute: banding dua kandidat (rumus peringkat terbuka)')
+  } else if (detailNo && recs[Number(detailNo[1]) - 1]) {
+    const r = recs[Number(detailNo[1]) - 1]
+    answer = `Kandidat ${detailNo[1]} — ${r.place}: ${r.body}\n\nKeyakinan ${r.confidence}, skor peringkat ${r.score.toFixed(1)}. Usulan untuk ${r.target}: ${r.action.replace(/^Jenis kandidat: /, '')}`
+    focus = r.focus
+    if (r.block) setBlock = r.block
+    facts.push({ label: 'Skor', value: r.score.toFixed(1) }, { label: 'Bukti', value: `${r.evidenceCount}` })
+    trace.push('Rute: detail satu kandidat')
+  } else if (wantsRec) {
     const top = recs.slice(0, 3)
     answer = top.length
       ? `${recs.length} rekomendasi tersusun dari hitungan. Tiga teratas:\n\n` +
@@ -136,7 +164,7 @@ export function askSimpul(
     trace.push('Rute: ringkasan kota')
   } else {
     answer =
-      'Belum paham maksudnya. Yang bisa dijawab: "kawasan mana yang ramai malam hari", "bagaimana sekitar Tanah Abang", "mana kantong yang tak terjangkau", "apa rekomendasinya", atau "ringkas kondisinya".'
+      'Belum paham maksudnya (mode aturan). Yang bisa dijawab: "kawasan mana yang ramai malam hari", "bagaimana sekitar Tanah Abang", "mana kantong yang tak terjangkau", "apa rekomendasinya", "kenapa kandidat 1 di atas 2", atau "ringkas kondisinya".'
     trace.push('Rute: fallback')
   }
 

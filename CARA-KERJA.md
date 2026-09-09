@@ -115,16 +115,25 @@ Contoh kartu nyata (data live 9 Sep 2026):
 
 Tidak ada bagian kartu yang ditulis oleh AI. Semua teks adalah template + angka dari hitungan; itu sebabnya panel menulis "disusun otomatis dari hitungan — bukan karangan".
 
-## 6. Asisten "Tanya"
+## 6. Asisten "Tanya AI"
 
-Versi sekarang **berbasis aturan**: mengenali maksud pertanyaan (blok waktu, nama stasiun, kata "rekomendasi"/"kesenjangan"/"ramai"), lalu memanggil fungsi hitung yang sama dengan peta dan merangkai jawabannya. Tiap jawaban menyertakan "jejak nalar" (rute yang ditempuh) dan menggerakkan peta.
+Sesuai PRD §7 (*AI Integration*): **LLM hanya mengolah bahasa; seluruh angka dari algoritma spasial.** Implementasinya:
 
-Rencana sesuai PRD (AI = LLM dengan *tool use*, tidak menghitung angka sendiri):
+1. Browser mengirim pertanyaan + konteks (peran, blok waktu, tampilan) + daftar **alat** langsung ke Gemini API (`gemini-3.6-flash`, free tier; kunci `VITE_GEMINI_API_KEY`). Alat (`src/lib/aiTools.ts`): `ringkasan_kota`, `sel_ramai(blok)`, `daftar_kandidat(jenis, target)`, `detail_kandidat(nomor)`, `bandingkan_kandidat(a, b)`, `profil_kawasan(nama)`, `tampilkan_di_peta(...)`.
+2. Gemini memilih alat (*function calling*).
+3. **Alatnya dijalankan di browser** (`src/lib/aiRun.ts`) terhadap model hitungan yang sedang tampil — fungsi yang sama dengan yang menggambar peta dan menyusun kartu — lalu hasilnya (angka) dikirim kembali. Diulang sampai model selesai merangkai kalimat.
+4. `tampilkan_di_peta` menggerakkan peta: pindah blok, ganti tampilan, sorot kandidat, terbang ke lokasi.
+5. Panel menampilkan "alat yang dipakai" (jejak) di tiap jawaban. Tanpa kunci, atau kalau kuota/jaringan gagal, panel jatuh ke asisten berbasis aturan (`src/lib/assistant.ts`) dan menandainya sebagai *mode aturan*.
 
-1. LLM dipanggil dari **backend** (fungsi serverless seperti `api/activities.ts`, key di server).
-2. LLM diberi daftar **alat**: `ringkasan_blok()`, `daftar_kandidat()`, `profil_kawasan(nama)`, `sel_ramai(blok)`. Alat-alat itu = fungsi yang sekarang sudah ada di `engine.ts` / `recommend.ts` / `assistant.ts`.
-3. LLM **memilih alat & merangkai kalimat**; angka datang dari alat. Jawaban tetap membawa jejak alat yang dipanggil.
-4. Kalau LLM gagal/limit, fallback ke asisten aturan yang ada sekarang.
+Pertanyaan di luar cakupan ditolak singkat; pertanyaan soal jumlah armada/investasi dijawab bahwa itu di luar lingkup SIMPUL (PRD *out-of-scope*).
+
+### Login berbasis peran
+
+Layar masuk (dummy, tanpa kata sandi) memilih satu dari empat peran: Perencana KAI Commuter, Analis Jaringan TransJakarta, Regulator Dishub, Tamu — tiga yang pertama = persona PRD §4. Peran mengubah **tampilan awal** (mode & lapisan), **kandidat mana yang tampil lebih dulu** (KAI: frekuensi kereta; TransJakarta: jangkauan/pengumpan & frekuensi bus; Dishub/Tamu: semua), contoh pertanyaan, dan sudut pandang asisten. Hitungan dan nomor kandidat sama untuk semua peran (`src/lib/roles.ts`).
+
+### Peringkat berdasarkan apa?
+
+Rumusnya (tab Metode & data): tak terjangkau = `3 × sel + bukti`; frekuensi rendah = `2 × sel + bukti + 5 × (1 − skor layanan)`. Ini urutan *bukti terkuat untuk ditinjau dulu*, bukan urutan investasi; angka rumusnya sengaja tidak ditampilkan di kartu supaya panel tetap ringkas. Panel juga bisa diurutkan menurut bukti terbanyak atau keyakinan tertinggi; nomor kandidat tetap mengikuti skor supaya sama dengan nomor di peta.
 
 ## 7. Batasan yang perlu diketahui pembaca
 

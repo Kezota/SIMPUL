@@ -22,6 +22,10 @@ export interface Recommendation {
   kind: 'jadwal' | 'jangkauan'
   target: string
   title: string
+  /** Nama tempat pendek untuk judul kartu (mis. "Lebak Bulus BSI"). */
+  place: string
+  /** Satu baris inti kartu (mis. "1,5 km dari layanan terdekat"). */
+  headline: string
   body: string
   /** Satu baris usulan konkret (jenis kandidat — tanpa angka armada). */
   action: string
@@ -31,6 +35,11 @@ export interface Recommendation {
   score: number
   /** PRD: tinggi = banyak observasi, sedang = jarang, rendah = sangat tipis. */
   confidence: Confidence
+  /**
+   * Dasar peringkat, ditulis terbuka supaya pengguna tahu "prioritas ini
+   * berdasarkan apa": rumus + angkanya untuk kantong ini.
+   */
+  rankBasis: string
   evidenceCount: number
   cellKeys: string[]
   nearestNode: TransitNode
@@ -116,8 +125,10 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
     if (kind === 'jangkauan') {
       return {
         ...base,
-        target: 'Dishub / operator feeder',
+        target: 'TransJakarta / JakLingko (rute pengumpan) · Dishub',
         title: `Kawasan ramai ${(avgTransitM / 1000).toFixed(1)} km dari layanan terdekat (arah ${shortName(nearest)})`,
+        place: `Arah ${shortName(nearest)}`,
+        headline: `${(avgTransitM / 1000).toFixed(1).replace('.', ',')} km dari stasiun/halte terdekat`,
         body: `${cl.length} sel bersebelahan tergolong ramai (paling hidup blok ${blockLabel(domBlock)}), tetapi tidak ada stasiun maupun halte dalam jarak jalan kaki 1 km. Bukti: ${evidence} laporan lapangan.`,
         action: `Jenis kandidat: rute pengumpan / halte baru menuju ${nearest.name}.`,
         facts: [
@@ -126,12 +137,15 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
           { label: 'Ke layanan', value: `${(avgTransitM / 1000).toFixed(1)} km` },
         ],
         score: cl.length * 3 + evidence,
+        rankBasis: `3 × ${cl.length} sel + ${evidence} bukti = ${cl.length * 3 + evidence}`,
       }
     }
     return {
       ...base,
       target: railDep >= busDep ? 'KAI Commuter / operator rel' : 'TransJakarta / JakLingko',
       title: `${shortName(nearest)}${stopName ? ` · ${stopName}` : ''}: ramai saat frekuensi rendah`,
+      place: `${shortName(nearest)}${stopName ? ` · ${stopName}` : ''}`,
+      headline: `Skor layanan ${Math.round(service * 100)}/100 saat ramai (${blockLabel(domBlock)})`,
       body: `${cl.length} sel di sekitarnya ramai pada blok ${blockLabel(domBlock)}, tetapi skor layanan hanya ${Math.round(
         service * 100,
       )}/100 — ±${railDep} keberangkatan rel dan ±${busDep} keberangkatan bus terjadwal pada blok itu (${(avgNodeM / 1000).toFixed(1)} km ke stasiun terdekat).`,
@@ -142,6 +156,11 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
         { label: 'Skor layanan', value: `${Math.round(service * 100)}/100` },
       ],
       score: cl.length * 2 + evidence + (1 - service) * 5,
+      rankBasis: `2 × ${cl.length} sel + ${evidence} bukti + 5 × (1 − ${service.toFixed(2)} layanan) = ${(
+        cl.length * 2 +
+        evidence +
+        (1 - service) * 5
+      ).toFixed(1)}`,
     }
   })
 }

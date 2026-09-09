@@ -4,25 +4,28 @@ import logoImg from './assets/logo.jpeg'
 import type { BasemapVariant } from './lib/basemap'
 import { buildModel } from './lib/engine'
 import Guide from './components/Guide'
+import Login from './components/Login'
+import LocationSearch, { type SearchHit } from './components/LocationSearch'
 import { guideSeen, markGuideSeen } from './lib/guideStorage'
 import { loadActivities, type ActivityFeed } from './lib/mapidApi'
 import { buildRecommendations, type Recommendation } from './lib/recommend'
+import { loadRole, saveRole, type Role } from './lib/roles'
 import MapView, { type MapMode } from './components/MapView'
 import TimeSlider from './components/TimeSlider'
 import AssistantPanel from './components/AssistantPanel'
 import MethodPanel from './components/MethodPanel'
 import RecPanel from './components/RecPanel'
 import type { BlockId } from './lib/timeblocks'
-import type { SimpulAnswer } from './lib/assistant'
+import type { AssistantResult } from './lib/aiRun'
 
 import './App.css'
 
 type Tab = 'rekomendasi' | 'ai' | 'metode'
 
 const TABS: { id: Tab; label: string; hint: string }[] = [
-  { id: 'rekomendasi', label: 'Kandidat', hint: 'Daftar kawasan yang perlu ditindaklanjuti' },
-  { id: 'ai', label: 'Tanya', hint: 'Tanya dalam bahasa biasa, peta ikut bergerak' },
-  { id: 'metode', label: 'Metode', hint: 'Dari mana angkanya, dan apa batasnya' },
+  { id: 'rekomendasi', label: 'Kandidat', hint: 'Daftar kawasan yang perlu ditinjau' },
+  { id: 'ai', label: 'Tanya AI', hint: 'Tanya dalam bahasa biasa, peta ikut bergerak' },
+  { id: 'metode', label: 'Metode & data', hint: 'Dari mana angkanya, dan apa batasnya' },
 ]
 
 function useIsMobile() {
@@ -39,6 +42,9 @@ function useIsMobile() {
 }
 
 export default function App() {
+  // Login dummy berbasis peran — hanya mengubah sudut pandang tampilan.
+  const [role, setRole] = useState<Role | null>(() => loadRole())
+
   // Laporan warga ditarik live dari API MAPID lewat /api/activities (snapshot bila gagal).
   const [feed, setFeed] = useState<ActivityFeed | null>(null)
   useEffect(() => {
@@ -57,20 +63,37 @@ export default function App() {
   const recs = useMemo(() => buildRecommendations(model), [model])
 
   const [block, setBlock] = useState<BlockId>('sore')
-  const [mode, setMode] = useState<MapMode>('denyut')
-  const [showRail, setShowRail] = useState(true)
-  const [showStops, setShowStops] = useState(true)
+  const [mode, setMode] = useState<MapMode>(role?.defaultMode ?? 'denyut')
+  const [showRail, setShowRail] = useState(role?.defaultRail ?? true)
+  const [showTj, setShowTj] = useState(role?.defaultTj ?? false)
+  const [showJak, setShowJak] = useState(role?.defaultJak ?? false)
   const [satellite, setSatellite] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [focus, setFocus] = useState<{ lat: number; lon: number; zoom: number; nonce: number } | null>(null)
+  const [pin, setPin] = useState<{ lat: number; lon: number; label: string } | null>(null)
   const [tab, setTab] = useState<Tab>('rekomendasi')
   const [activeRecId, setActiveRecId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [hintDismissed, setHintDismissed] = useState(false)
   const [guideOpen, setGuideOpen] = useState(() => !guideSeen())
 
   const isMobile = useIsMobile()
   const variant: BasemapVariant = satellite ? 'satellite' : theme
+
+  const enterAs = (r: Role) => {
+    saveRole(r.id)
+    setRole(r)
+    setMode(r.defaultMode)
+    setShowRail(r.defaultRail)
+    setShowTj(r.defaultTj)
+    setShowJak(r.defaultJak)
+    setTab('rekomendasi')
+    setActiveRecId(null)
+  }
+
+  const logout = () => {
+    saveRole(null)
+    setRole(null)
+  }
 
   const closeGuide = () => {
     markGuideSeen()
@@ -82,7 +105,6 @@ export default function App() {
 
   const changeBlock = (b: BlockId) => {
     setBlock(b)
-    setHintDismissed(true)
   }
 
   /** Dipakai oleh kartu kandidat DAN marker bernomor di peta. */
@@ -91,7 +113,7 @@ export default function App() {
     if (r.block) setBlock(r.block)
     flyTo(r.focus.lat, r.focus.lon, r.focus.zoom)
     setActiveRecId(r.id)
-    setHintDismissed(true)
+    setPin(null)
   }
 
   const onRecMarkerClick = (r: Recommendation) => {
@@ -100,11 +122,26 @@ export default function App() {
     if (isMobile) setSheetOpen(true)
   }
 
-  const applyAnswer = (a: SimpulAnswer) => {
-    if (a.setBlock) setBlock(a.setBlock)
-    if (a.focus) flyTo(a.focus.lat, a.focus.lon, a.focus.zoom)
-    setHintDismissed(true)
+  const onSearchPick = (h: SearchHit) => {
+    if (h.recId) {
+      const r = recs.find((x) => x.id === h.recId)
+      if (r) {
+        focusRec(r)
+        return
+      }
+    }
+    flyTo(h.lat, h.lon, h.zoom)
+    setPin({ lat: h.lat, lon: h.lon, label: h.label })
   }
+
+  const applyAnswer = (a: AssistantResult) => {
+    if (a.setBlock) setBlock(a.setBlock)
+    if (a.setMode) setMode(a.setMode)
+    if (a.activeRec) setActiveRecId(a.activeRec)
+    if (a.focus) flyTo(a.focus.lat, a.focus.lon, a.focus.zoom)
+  }
+
+  if (!role) return <Login onEnter={enterAs} />
 
   const panelFor = (t: Tab) => {
     switch (t) {
@@ -113,6 +150,7 @@ export default function App() {
           <RecPanel
             model={model}
             recs={recs}
+            role={role}
             block={block}
             mode={mode}
             loading={feedStatus === 'memuat'}
@@ -123,7 +161,7 @@ export default function App() {
           />
         )
       case 'ai':
-        return <AssistantPanel model={model} recs={recs} onApply={applyAnswer} />
+        return <AssistantPanel model={model} recs={recs} role={role} block={block} mode={mode} onApply={applyAnswer} />
       case 'metode':
         return <MethodPanel model={model} feedStatus={feedStatus} />
     }
@@ -136,6 +174,8 @@ export default function App() {
           feedStatus === 'live' ? ' · live' : feedStatus === 'snapshot' ? ' · snapshot' : ''
         }`
 
+  const ownedCount = recs.filter(role.owns).length
+
   return (
     <div className={`app${isMobile ? ' is-mobile' : ''}`} data-theme={theme}>
       <header className="topbar">
@@ -143,9 +183,14 @@ export default function App() {
           <img src={logoImg} alt="SIMPUL Logo" className="brand-mark simpul-mark" />
           <div>
             <h1>SIMPUL</h1>
-            <p>Kapan kota hidup — dan apakah transportasi massalnya hadir pada jam itu</p>
+            <p>Kawasan ramai vs. layanan transit, per blok waktu · Jabodetabek</p>
           </div>
         </div>
+        {!isMobile && (
+          <div className="topbar-search">
+            <LocationSearch model={model} recs={recs} onPick={onSearchPick} onClear={() => setPin(null)} />
+          </div>
+        )}
         <div className="topbar-actions">
           <span className="data-note" title={model.sources.join('\n')}>
             <i className={`feed-status feed-${feedStatus}`} aria-hidden="true" />
@@ -163,6 +208,13 @@ export default function App() {
           >
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
+          <button type="button" className="role-badge" onClick={logout} title="Klik untuk ganti peran">
+            <span aria-hidden="true">{role.icon}</span>
+            <span className="role-badge-txt">
+              <b>{role.label}</b>
+              <small>Ganti peran</small>
+            </span>
+          </button>
         </div>
       </header>
 
@@ -174,109 +226,121 @@ export default function App() {
             block={block}
             mode={mode}
             showRail={showRail}
-            showStops={showStops}
+            showTj={showTj}
+            showJak={showJak}
             variant={variant}
             focus={focus}
+            pin={pin}
             onRecClick={onRecMarkerClick}
           />
 
-          {/* Kontrol peta: dua kelompok berlabel supaya jelas mana "cerita" dan mana "lapisan". */}
-          <div className="map-tools">
-            <div className="tool-group" role="group" aria-label="Tampilan peta">
-              <span className="tool-caption">Tampilan</span>
-              <div className="tool-row mode-switch">
-                <button
-                  type="button"
-                  className={mode === 'denyut' ? 'on' : undefined}
-                  onClick={() => setMode('denyut')}
-                  title="Seberapa hidup tiap kawasan pada blok waktu ini"
-                >
-                  🔥 Denyut
-                </button>
-                <button
-                  type="button"
-                  className={mode === 'gap' ? 'on' : undefined}
-                  onClick={() => setMode('gap')}
-                  title="Kawasan ramai yang layanan transitnya kurang"
-                >
-                  🚨 Kesenjangan
-                </button>
-              </div>
+          {isMobile && (
+            <div className="map-search">
+              <LocationSearch model={model} recs={recs} onPick={onSearchPick} onClear={() => setPin(null)} />
             </div>
-            <div className="tool-group" role="group" aria-label="Lapisan peta">
-              <span className="tool-caption">Lapisan</span>
-              <div className="tool-row">
-                <button
-                  type="button"
-                  className={`chip-toggle${showStops ? ' on' : ''}`}
-                  aria-pressed={showStops}
-                  onClick={() => setShowStops(!showStops)}
-                  title="7.814 halte TransJakarta & JakLingko (GTFS resmi) — klik titiknya untuk keberangkatan per blok"
-                >
-                  <span className="chip-ico" aria-hidden="true">🚌</span>
-                  <span className="chip-txt">Halte bus</span>
-                </button>
-                <button
-                  type="button"
-                  className={`chip-toggle${showRail ? ' on' : ''}`}
-                  aria-pressed={showRail}
-                  onClick={() => setShowRail(!showRail)}
-                  title="Jalur KRL/MRT/LRT/Whoosh (geometri OpenStreetMap)"
-                >
-                  <span className="chip-ico" aria-hidden="true">🛤</span>
-                  <span className="chip-txt">Jalur rel</span>
-                </button>
-                <button
-                  type="button"
-                  className={`chip-toggle${satellite ? ' on' : ''}`}
-                  aria-pressed={satellite}
-                  onClick={() => setSatellite(!satellite)}
-                  title="Citra satelit (MAPID MAPS)"
-                >
-                  <span className="chip-ico" aria-hidden="true">🛰</span>
-                  <span className="chip-txt">Satelit</span>
-                </button>
+          )}
+
+          <div className="map-top">
+            {/* Kontrol peta: dua kelompok berlabel supaya jelas mana "cerita" dan mana "lapisan". */}
+            <div className="map-tools">
+              <div className="tool-group" role="group" aria-label="Tampilan peta">
+                <span className="tool-caption">Tampilan</span>
+                <div className="tool-row mode-switch">
+                  <button
+                    type="button"
+                    className={mode === 'denyut' ? 'on' : undefined}
+                    onClick={() => setMode('denyut')}
+                    title="Seberapa ramai tiap kawasan pada blok waktu ini (dari laporan warga)"
+                  >
+                    🔥 Aktivitas warga
+                  </button>
+                  <button
+                    type="button"
+                    className={mode === 'gap' ? 'on' : undefined}
+                    onClick={() => setMode('gap')}
+                    title="Hanya kawasan ramai yang layanan transitnya kurang"
+                  >
+                    ⚠️ Kesenjangan
+                  </button>
+                </div>
+              </div>
+              <div className="tool-group" role="group" aria-label="Lapisan peta">
+                <span className="tool-caption">Lapisan</span>
+                <div className="tool-row">
+                  <button
+                    type="button"
+                    className={`chip-toggle${showRail ? ' on' : ''}`}
+                    aria-pressed={showRail}
+                    onClick={() => setShowRail(!showRail)}
+                    title="Jalur KRL/MRT/LRT/Whoosh (OpenStreetMap)"
+                  >
+                    <span className="chip-ico" aria-hidden="true">🛤</span>
+                    <span className="chip-txt">Rel</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip-toggle${showTj ? ' on' : ''}`}
+                    aria-pressed={showTj}
+                    onClick={() => setShowTj(!showTj)}
+                    title="Halte TransJakarta BRT & non-BRT (GTFS resmi). Klik titiknya untuk jumlah bus per blok."
+                  >
+                    <span className="chip-ico dot-tj" aria-hidden="true" />
+                    <span className="chip-txt">TransJakarta</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip-toggle${showJak ? ' on' : ''}`}
+                    aria-pressed={showJak}
+                    onClick={() => setShowJak(!showJak)}
+                    title="Halte JakLingko / Mikrotrans — ribuan titik, tampil saat peta diperbesar"
+                  >
+                    <span className="chip-ico dot-jak" aria-hidden="true" />
+                    <span className="chip-txt">JakLingko</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Peta dasar bukan lapisan data — tombol terpisah di bawah kontrol zoom. */}
+          <button
+            type="button"
+            className={`basemap-toggle${satellite ? ' on' : ''}`}
+            aria-pressed={satellite}
+            onClick={() => setSatellite(!satellite)}
+            title={satellite ? 'Kembali ke peta jalan' : 'Ganti ke citra satelit (MAPID MAPS)'}
+          >
+            {satellite ? '🗺' : '🛰'}
+            <span>{satellite ? 'Peta jalan' : 'Satelit'}</span>
+          </button>
 
           {/* Legenda ringkas, ikut mode */}
           <div className="simpul-legend-card">
             {mode === 'denyut' ? (
               <>
-                <b className="legend-title">Denyut · seberapa hidup kawasan</b>
+                <b className="legend-title">Aktivitas warga · blok ini</b>
                 <div className="ramp-bar" />
                 <div className="ramp-labels">
                   <span>sepi</span>
                   <span>ramai</span>
                 </div>
                 <small>
-                  Dari laporan lapangan warga pada blok waktu ini. Perbesar untuk melihat per kawasan.
-                  Tanpa warna = <b>tidak ada data</b> (bukan sepi — SIMPUL tidak menebak).
+                  Tanpa warna = <b>tidak ada data</b>, bukan sepi.
                 </small>
               </>
             ) : (
               <>
                 <b className="legend-title">Kesenjangan · ramai tapi layanan kurang</b>
-                <div className="gap-legend-row">
-                  <i style={{ background: '#dc2626' }} /> Tak terjangkau — tidak ada stasiun/halte dalam 1 km
+                <div className="gap-legend-row" title="Kawasan ramai tanpa stasiun/halte dalam 1 km">
+                  <i style={{ background: '#dc2626' }} /> Tak terjangkau (&gt; 1 km)
                 </div>
-                <div className="gap-legend-row">
-                  <i style={{ background: '#f97316' }} /> Frekuensi rendah — ada layanan, jadwalnya tipis
+                <div className="gap-legend-row" title="Kawasan ramai, ada layanan, tetapi jadwalnya tipis pada blok ini">
+                  <i style={{ background: '#f97316' }} /> Frekuensi rendah
                 </div>
-                <small>
-                  Nomor di peta = nomor kandidat di panel. Angka di stasiun = keberangkatan terjadwal pada
-                  blok ini.
-                </small>
+                <small>Nomor merah/oranye = kandidat di panel. Angka di stasiun = perkiraan kereta pada blok ini.</small>
               </>
             )}
           </div>
-
-          {!hintDismissed && !guideOpen && (
-            <button type="button" className="coach-mark" onClick={() => setHintDismissed(true)}>
-              👋 Geser blok waktu di bawah — lihat kota bernapas. <u>Oke</u>
-            </button>
-          )}
 
           <TimeSlider block={block} onChange={changeBlock} />
         </section>
@@ -285,15 +349,9 @@ export default function App() {
           <aside className="rail rail-right">
             <nav className="tabs">
               {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={tab === t.id ? 'on' : undefined}
-                  title={t.hint}
-                  onClick={() => setTab(t.id)}
-                >
+                <button key={t.id} type="button" className={tab === t.id ? 'on' : undefined} title={t.hint} onClick={() => setTab(t.id)}>
                   {t.label}
-                  {t.id === 'rekomendasi' && recs.length > 0 && <span className="tab-count">{recs.length}</span>}
+                  {t.id === 'rekomendasi' && ownedCount > 0 && <span className="tab-count">{ownedCount}</span>}
                 </button>
               ))}
             </nav>
@@ -326,7 +384,7 @@ export default function App() {
         </div>
       )}
 
-      {guideOpen && <Guide onClose={closeGuide} />}
+      {guideOpen && <Guide role={role} onClose={closeGuide} />}
     </div>
   )
 }

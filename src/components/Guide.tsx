@@ -1,3 +1,5 @@
+import type { Role } from '../lib/roles'
+
 /**
  * Panduan singkat "Cara pakai" — muncul otomatis pada kunjungan pertama dan
  * bisa dibuka lagi dari tombol ? di topbar. Tujuannya satu: orang yang baru
@@ -6,36 +8,34 @@
 
 const STEPS = [
   {
-    icon: '🔥',
-    title: 'Lihat kapan kota hidup',
-    body: 'Mode Denyut mewarnai kawasan dari laporan lapangan warga (Community Maps MAPID). Makin pekat = makin banyak kegiatan terekam. Geser blok waktu di bawah peta: pagi, siang, sore, malam, larut.',
+    icon: '🕒',
+    title: 'Pilih blok waktu',
+    body: 'Geser penggeser di bawah peta: pagi, siang, sore, malam, larut. Warna peta menunjukkan seberapa ramai kawasan menurut laporan lapangan warga pada jam itu.',
   },
   {
-    icon: '🚨',
-    title: 'Temukan kesenjangan layanan',
-    body: 'Mode Kesenjangan hanya mewarnai kawasan yang RAMAI tetapi layanan transitnya kurang: merah = tidak ada stasiun/halte dalam 1 km, oranye = ada tetapi frekuensinya rendah pada blok itu.',
+    icon: '⚠️',
+    title: 'Lihat kesenjangan layanan',
+    body: 'Tampilan "Kesenjangan" hanya mewarnai kawasan RAMAI yang layanan transitnya kurang: merah = tidak ada stasiun/halte dalam 1 km, oranye = ada tetapi jadwalnya tipis.',
   },
   {
     icon: '📋',
-    title: 'Baca kandidatnya',
-    body: 'Panel kanan menyusun daftar kandidat berperingkat dari hitungan itu. Klik kartu (atau nomor di peta) untuk terbang ke lokasinya; tiap kartu menyebut bukti, jarak, dan tingkat keyakinannya.',
+    title: 'Tinjau kandidat',
+    body: 'Panel kanan menyusun daftar kandidat berperingkat. Nomor kartu = nomor di peta. Tiap kartu menyebut bukti, jarak, keyakinan, dan rumus peringkatnya.',
+  },
+  {
+    icon: '💬',
+    title: 'Tanya asisten',
+    body: 'Tab "Tanya AI": tanyakan dalam bahasa biasa, misalnya "kenapa kandidat 1 di atas 2". Asisten mengambil angka dari hitungan yang sama dan menggerakkan peta.',
   },
 ]
 
-export default function Guide({ onClose }: { onClose: () => void }) {
+export default function Guide({ role, onClose }: { role: Role; onClose: () => void }) {
   return (
     <div className="guide-backdrop" role="presentation" onClick={onClose}>
-      <div
-        className="guide"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="guide-title"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="guide" role="dialog" aria-modal="true" aria-labelledby="guide-title" onClick={(e) => e.stopPropagation()}>
         <h2 id="guide-title">Cara pakai SIMPUL</h2>
         <p className="guide-lead">
-          Peta ini menjawab dua pertanyaan: <b>kapan sebuah kawasan hidup</b>, dan{' '}
-          <b>apakah transportasi massalnya hadir pada jam itu</b>.
+          Anda masuk sebagai <b>{role.label}</b>. {role.focus}
         </p>
         <ol className="guide-steps">
           {STEPS.map((s, i) => (
@@ -54,17 +54,17 @@ export default function Guide({ onClose }: { onClose: () => void }) {
         </ol>
         <div className="guide-tips">
           <span>
-            <b>Lapisan peta</b> (kiri atas): nyalakan/matikan halte bus, jalur rel, citra satelit.
+            <b>Cari lokasi</b> (kotak di atas peta): nama stasiun, halte, kelurahan, atau nomor kandidat.
           </span>
           <span>
-            <b>Klik apa saja</b>: kawasan, stasiun, halte — semuanya punya penjelasan.
+            <b>Klik apa saja</b> di peta: kawasan, stasiun, halte — semuanya punya penjelasan.
           </span>
           <span>
-            <b>Tidak ada warna</b> = tidak ada data, bukan sepi. SIMPUL tidak menebak.
+            <b>Tanpa warna</b> = tidak ada data, bukan sepi. SIMPUL tidak menebak.
           </span>
         </div>
         <button type="button" className="guide-close" onClick={onClose}>
-          Mulai jelajahi
+          Mulai
         </button>
       </div>
     </div>

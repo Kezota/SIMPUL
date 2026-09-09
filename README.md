@@ -10,8 +10,10 @@ Prototipe WebGIS tim COOK untuk MAPID WebGIS Competition 2026 (*Maps That Think!
 - 🔥 **Denyut** — heatmap → heksagon ±500 m, digeser lima blok waktu (pagi–larut)
 - 🚨 **Kesenjangan** — hanya kawasan ramai yang layanannya kurang: merah = tak ada stasiun/halte dalam 1 km, oranye = frekuensi rendah; stasiun menampilkan keberangkatan terjadwal per blok
 - 📋 **Kandidat berperingkat** — kantong sel bermasalah digabung, diberi bukti, jarak, blok dominan, tingkat keyakinan, dan usulan bertarget; nomor kartu = nomor di peta
-- 💬 **Tanya** — pertanyaan bahasa biasa → jawaban berangka dari hitungan yang sama + peta ikut bergerak + jejak nalar
-- 🧭 **Panduan "Cara pakai"** muncul di kunjungan pertama; kontrol peta berlabel (Tampilan / Lapisan)
+- 💬 **Tanya AI** — Gemini dengan *function calling*: model memilih alat (ringkasan kota, sel ramai, daftar/detail/banding kandidat, profil kawasan, gerakkan peta), angka dijalankan mesin hitung di browser; tanpa kunci API otomatis jatuh ke mode aturan
+- 👤 **Login berbasis peran** (dummy, tanpa kata sandi) — Perencana KAI Commuter, Analis Jaringan TransJakarta, Regulator Dishub, Tamu; peran menentukan tampilan awal, kandidat mana yang tampil lebih dulu, dan sudut pandang asisten
+- 🔎 **Cari lokasi** — stasiun, halte, nomor kandidat (lokal) + nama tempat lewat geocoder Nominatim (OSM), dibatasi Jabodetabek
+- 🧭 **Panduan "Cara pakai"** muncul di kunjungan pertama; kontrol peta berlabel (Tampilan / Lapisan); tiap kartu kandidat menampilkan rumus peringkatnya
 - 🗺 **Basemap MAPID MAPS** (light / dark / satellite)
 
 ## Data (semua nyata, tidak ada dummy)
@@ -32,7 +34,7 @@ Tidak ada perkiraan keramaian untuk kawasan tanpa laporan — ditampilkan "Tidak
 npm install
 ```
 
-Salin `.env.example` → `.env.local`, isi `VITE_MAPID_API_KEY` (Dashboard MAPID → Map Services → API Keys). Key yang sama dipakai untuk basemap dan — lewat proxy dev di `vite.config.ts` — untuk API Activities.
+Salin `.env.example` → `.env.local`, isi `VITE_MAPID_API_KEY` (Dashboard MAPID → Map Services → API Keys). Key yang sama dipakai untuk basemap dan — lewat proxy dev di `vite.config.ts` — untuk API Activities. Isi juga `VITE_GEMINI_API_KEY` (aistudio.google.com, free tier) supaya tab **Tanya AI** memakai Gemini; tanpa kunci, asisten memakai mode aturan.
 
 ```bash
 npm run dev
@@ -40,7 +42,7 @@ npm run dev
 
 ### Deploy (Vercel)
 
-`api/activities.ts` adalah Edge Function yang meneruskan permintaan ke server MAPID (endpoint itu menolak panggilan langsung dari browser). Set **`MAPID_API_KEY`** dan `VITE_MAPID_API_KEY` di Environment Variables proyek. `vercel.json` sudah mengecualikan `/api/` dari rewrite SPA.
+`api/activities.ts` adalah Edge Function yang meneruskan permintaan ke server MAPID (endpoint itu menolak panggilan langsung dari browser). Set **`MAPID_API_KEY`**, `VITE_MAPID_API_KEY`, dan `VITE_GEMINI_API_KEY` di Environment Variables proyek. `vercel.json` sudah mengecualikan `/api/` dari rewrite SPA.
 
 ## Dokumentasi
 
@@ -58,4 +60,4 @@ React 19 + TypeScript + Vite · MapLibre GL JS v5 · analisis spasial ditulis ma
 
 ## Batasan
 
-Sebaran laporan mengikuti lokasi surveyor (bukan sampel acak); jam laporan condong 12–17 WIB; timetable KRL per stasiun belum terbuka; asisten masih berbasis aturan (rencana LLM *tool use* di CARA-KERJA.md §6). Daftar lengkap ada di tab **Metode** dalam aplikasi.
+Sebaran laporan mengikuti lokasi surveyor (bukan sampel acak); jam laporan condong 12–17 WIB; timetable KRL per stasiun belum terbuka; login peran hanya menyaring tampilan (belum ada autentikasi sungguhan). Daftar lengkap ada di tab **Metode & data** dalam aplikasi.
