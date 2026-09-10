@@ -1384,7 +1384,7 @@ body {
 .app[data-theme='dark'] .conf-sedang { background: #451a03; color: #fcd34d; }
 .app[data-theme='dark'] .conf-rendah { background: #450a0a; color: #fca5a5; }
 
-.simpul-node-mrt .simpul-node-dot { background: #1d4ed8; border-radius: 50%; transform: none; }
+.simpul-node-mrt .simpul-node-dot { background: #0d9488; border-radius: 50%; transform: none; }
 .simpul-node-lrt .simpul-node-dot,
 .simpul-node-lrt_jabodebek .simpul-node-dot { background: #7c3aed; border-radius: 50%; transform: none; }
 .simpul-node-krl .simpul-node-dot { background: #dc2626; }
@@ -2505,7 +2505,7 @@ body {
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
 }
-.rc-stats span {
+.rc-stats > span {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2600,7 +2600,7 @@ body {
   box-shadow: 0 0 0 1px rgb(0 0 0 / 0.15);
 }
 .chip-ico.dot-tj {
-  background: #1d4ed8;
+  background: #d97706;
 }
 .chip-ico.dot-jak {
   background: #0ea5e9;
@@ -2655,7 +2655,7 @@ body {
   gap: 6px;
   margin: 8px 0;
 }
-.pop-grid span {
+.pop-grid > span {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2763,7 +2763,7 @@ body {
   gap: 8px;
   margin: 18px 0 6px;
 }
-.rd-stats span {
+.rd-stats > span {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2901,7 +2901,7 @@ body {
   box-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
 }
 .sd-ico-mrt {
-  background: #1d4ed8;
+  background: #0d9488;
   border-radius: 50%;
 }
 .sd-ico-lrt,
@@ -2937,4 +2937,353 @@ body {
 }
 .sd-rec > div {
   min-width: 0;
+}
+
+/* ── SIMPUL v8: tombol "i", jalur berwarna, usulan ────────────────────────── */
+.infotip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.infotip-btn {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  font-style: italic;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.infotip-btn:hover,
+.infotip-btn.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.infotip-pop {
+  position: absolute;
+  z-index: 70;
+  left: 50%;
+  top: calc(100% + 6px);
+  transform: translateX(-50%);
+  width: 260px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 12.5px;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.45;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.5);
+  white-space: normal;
+}
+.rc-stats > span,
+.rd-stats > span {
+  position: relative;
+}
+.rc-stats small,
+.rd-stats small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+/* Popover di ubin paling kanan jangan keluar panel */
+.rc-stats span:last-child .infotip-pop,
+.rd-stats span:last-child .infotip-pop {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.rc-stats span:first-child .infotip-pop,
+.rd-stats span:first-child .infotip-pop {
+  left: 0;
+  transform: none;
+}
+
+/* Usulan di kartu & modal */
+.rc-proposal {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rc-est {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rc-est > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  position: relative;
+}
+.rc-est span .infotip-pop {
+  font-weight: 400;
+}
+.rd-steps {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  line-height: 1.5;
+}
+.rd-est {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.rd-est > span {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+.rd-est b {
+  font-size: 18px;
+}
+.rd-est small {
+  font-size: 12px;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+}
+.rd-est span:last-child .infotip-pop {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.rd-caveat {
+  margin-top: 8px !important;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* Legenda jalur berwarna */
+.line-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.line-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.line-legend i {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+.line-legend i.dash {
+  background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px);
+}
+
+/* Sel berdata tanpa gap (mode kesenjangan) lebih terbaca */
+.gap-legend-row i.ghost {
+  background: transparent;
+  border: 1.5px dashed #64748b;
+}
+.line-legend-details {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+.line-legend-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rc.is-open {
+  overflow: visible;
+}
+.rc-stats > span .infotip-pop,
+.rd-stats > span .infotip-pop,
+.rd-est > span .infotip-pop,
+.rc-est > span .infotip-pop {
+  display: block;
+  padding: 10px 12px;
+  background: #0f172a;
+  color: #f8fafc;
+  border: none;
+  border-radius: 10px;
+}
+
+/* ── SIMPUL v9: modal detail berblok, "i" di pojok, toggle per moda ────────── */
+.infotip.corner {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  margin: 0;
+}
+.infotip.corner .infotip-pop {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.rc-stats > span,
+.rd-stats > span,
+.rd-est > span {
+  padding-right: 14px;
+  padding-left: 14px;
+}
+.rd-stats {
+  grid-template-columns: repeat(4, 1fr);
+}
+.rd-stats > span b {
+  font-size: 19px;
+}
+.rd-card {
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 14px 16px 16px;
+  margin-top: 12px !important;
+}
+.rd-card h3 {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+}
+.rd-facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.rd-facts li {
+  position: relative;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+.rd-facts li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.rd-card .rd-list li {
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rd-list-meta {
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.rd-summary {
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+.rd-action.rd-card .rd-summary {
+  margin: 0;
+}
+.rd-target {
+  display: block;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.rd-steps {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  counter-reset: step;
+  gap: 8px;
+}
+.rd-steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 10px 12px 10px 44px;
+  border-radius: 10px;
+  background: var(--surface);
+  line-height: 1.5;
+}
+.rd-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  font-size: 12.5px;
+  display: grid;
+  place-items: center;
+}
+.rd-est {
+  margin-top: 12px;
+}
+.rd-est > span {
+  background: var(--surface);
+}
+.rd-conf-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.45;
+}
+.rd-conf-row .rc-conf b {
+  width: 9px;
+  height: 9px;
+}
+.rd-conf-word {
+  text-transform: capitalize;
+}
+.rd .rd-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.chip-ico.dot-line {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+}
+.chip-ico.line-ico {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: #d97706;
 }

@@ -6,6 +6,10 @@ import type { Role } from '../lib/roles'
 import { TIME_BLOCKS, type BlockId } from '../lib/timeblocks'
 import type { MapMode } from './MapView'
 import RecDetail from './RecDetail'
+import InfoTip from './InfoTip'
+import type { GlossaryKey } from '../lib/glossary'
+
+const FACT_KEY: Record<string, GlossaryKey> = { 'Sel ramai': 'sel_ramai', Bukti: 'bukti', 'Ke layanan': 'ke_layanan', 'Skor layanan': 'skor_layanan' }
 
 const KIND_LABEL = { jangkauan: 'Tak terjangkau', jadwal: 'Frekuensi rendah' } as const
 const CONF_HINT = {
@@ -108,16 +112,21 @@ export default function RecPanel({
               {r.facts.map((f) => (
                 <span key={f.label}>
                   <b>{f.value}</b>
-                  <small>{f.label}</small>
+                  <small>
+                    {f.label}
+                    {FACT_KEY[f.label] && <InfoTip k={FACT_KEY[f.label]} corner />}
+                  </small>
                 </span>
               ))}
             </div>
-            <div className="rc-row">
-              <small>Usulan</small>
-              <span>
-                {r.action.replace(/^Jenis kandidat: /, '')}
-                <em>untuk {r.target}</em>
-              </span>
+            <p className="rc-proposal">{r.proposal.summary}</p>
+            <div className="rc-est">
+              {r.proposal.estimate.slice(0, 2).map((e) => (
+                <span key={e.label}>
+                  {e.label}: {e.value}
+                  <InfoTip text={e.how} />
+                </span>
+              ))}
             </div>
             <div className="rc-btns">
               <button type="button" className="btn small" onClick={() => onFocus(r)}>
@@ -138,8 +147,9 @@ export default function RecPanel({
       {/* Grafik mini: kapan datanya "hidup". Klik batang = pindah blok. */}
       <section className="blk">
         <div className="blk-head">
-          <h3>Aktivitas per blok waktu</h3>
-          <span className="hint" title="Total poin kegiatan dari laporan lapangan warga pada tiap blok. Klik batang untuk memindahkan peta.">?</span>
+          <h3>
+            Aktivitas per blok waktu <InfoTip k="aktivitas_blok" />
+          </h3>
         </div>
         {loading ? (
           <p className="skeleton-line">Memuat laporan warga dari MAPID…</p>

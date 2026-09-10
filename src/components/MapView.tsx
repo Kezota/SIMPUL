@@ -10,6 +10,7 @@ import {
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 import railLines from '../data/railLines.json' with { type: 'json' }
+import tjRoutes from '../data/tjRoutes.json' with { type: 'json' }
 import { getBasemapStyle, type BasemapVariant } from '../lib/basemap'
 import { formatDistance } from '../lib/geo'
 import { hexPolygon } from '../lib/hexgrid'
@@ -17,6 +18,20 @@ import { TIME_BLOCKS, type BlockId } from '../lib/timeblocks'
 import { REGION, type SimpulModel } from '../lib/engine'
 import type { Recommendation } from '../lib/recommend'
 import type { TransitNode } from '../lib/types'
+
+/** Satu warna per moda (KRL tetap per lintas). Sama dengan titik stasiun/halte & legenda. */
+export const MRT_COLOR = '#0d9488'
+export const LRT_COLOR = '#7c3aed'
+export const TJ_COLOR = '#d97706'
+
+/** Jenis simpul/jalur yang tampil untuk kombinasi toggle KRL / MRT / LRT. */
+function railKindsOn(t: { showKrl: boolean; showMrt: boolean; showLrt: boolean }): string[] {
+  const out: string[] = []
+  if (t.showKrl) out.push('krl', 'stasiun', 'kcic', 'terminal')
+  if (t.showMrt) out.push('mrt')
+  if (t.showLrt) out.push('lrt', 'lrt_jabodebek')
+  return out
+}
 
 /** Dua cerita, dua tampilan — supaya layar tidak menceritakan semuanya sekaligus. */
 export type MapMode = 'denyut' | 'gap'
@@ -26,15 +41,19 @@ interface Props {
   recs: Recommendation[]
   block: BlockId
   mode: MapMode
-  showRail: boolean
-  /** Marker stasiun/terminal. */
-  showNodes: boolean
-  /** Halte BRT/non-BRT TransJakarta. */
-  showTj: boolean
+  /** Stasiun + jalur per moda rel. */
+  showKrl: boolean
+  showMrt: boolean
+  showLrt: boolean
+  /** Koridor BRT TransJakarta (garis) dan haltenya (titik). */
+  showTjRoutes: boolean
+  showTjStops: boolean
   /** Halte JakLingko / Mikrotrans (jumlahnya ribuan — dipisah supaya peta tidak penuh titik). */
   showJak: boolean
   variant: BasemapVariant
   focus: { lat: number; lon: number; zoom: number; nonce: number } | null
+  /** Kandidat yang disorot — usulan rute pengumpannya digambar di peta. */
+  activeRecId: string | null
   /** Penanda hasil pencarian lokasi. */
   pin: { lat: number; lon: number; label: string } | null
   onRecClick: (rec: Recommendation, index: number) => void
@@ -46,7 +65,7 @@ const escapeHtml = (s: string) =>
 
 const blockLabel = (id: BlockId) => {
   const b = TIME_BLOCKS.find((x) => x.id === id)!
-  return `${b.label} (${b.range})`
+  return b.label
 }
 
 /**
@@ -64,12 +83,15 @@ export default function MapView({
   recs,
   block,
   mode,
-  showRail,
-  showNodes,
-  showTj,
+  showKrl,
+  showMrt,
+  showLrt,
+  showTjRoutes,
+  showTjStops,
   showJak,
   variant,
   focus,
+  activeRecId,
   pin,
   onRecClick,
   onNodeClick,
@@ -150,8 +172,8 @@ export default function MapView({
     return m
   }, [recs])
 
-  const latest = useRef({ fcByBlock, stopsFC, block, mode, model, showRail, showTj, showJak, recByCell, onRecClick, onNodeClick })
-  latest.current = { fcByBlock, stopsFC, block, mode, model, showRail, showTj, showJak, recByCell, onRecClick, onNodeClick }
+  const latest = useRef({ fcByBlock, stopsFC, block, mode, model, showKrl, showMrt, showLrt, showTjRoutes, showTjStops, showJak, recByCell, onRecClick, onNodeClick })
+  latest.current = { fcByBlock, stopsFC, block, mode, model, showKrl, showMrt, showLrt, showTjRoutes, showTjStops, showJak, recByCell, onRecClick, onNodeClick }
 
   /* ── Init peta (sekali) ────────────────────────────────────────────────── */
   useEffect(() => {
@@ -203,32 +225,102 @@ export default function MapView({
   }, [])
 
   function installLayers(map: MLMap) {
-    /* Jalur rel — geometri asli OpenStreetMap (KRL/KA, MRT, LRT, Whoosh) se-Jabodetabek. */
+    /* Jalur rel — relasi rute OpenStreetMap, satu warna per lintas (warna resmi operator). */
     if (!map.getSource('rail')) {
       map.addSource('rail', { type: 'geojson', data: railLines as GeoJSON.FeatureCollection })
       map.addLayer({
         id: 'rail-casing',
         type: 'line',
         source: 'rail',
-        paint: { 'line-color': '#ffffff', 'line-width': 3.2, 'line-opacity': 0.85 },
+        paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 3, 13, 5.5], 'line-opacity': 0.9 },
       })
       map.addLayer({
-        id: 'rail-ka',
+        id: 'rail-lines',
         type: 'line',
         source: 'rail',
-        filter: ['==', ['get', 'kind'], 'ka'],
-        paint: { 'line-color': '#334155', 'line-width': 1.6 },
+        filter: ['!=', ['get', 'kind'], 'kcic'],
+        // KRL per lintas (warna resmi); MRT dan LRT masing-masing satu warna supaya gampang dibedakan.
+        paint: {
+          'line-color': ['case', ['==', ['get', 'kind'], 'mrt'], MRT_COLOR, ['in', ['get', 'kind'], ['literal', ['lrt', 'lrt_jabodebek']]], LRT_COLOR, ['get', 'colour']],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.6, 13, 3.2],
+        },
       })
       map.addLayer({
         id: 'rail-kcic',
         type: 'line',
         source: 'rail',
-        filter: ['in', ['get', 'kind'], ['literal', ['kcic', 'mrt', 'lrt']]],
-        paint: {
-          'line-color': '#b91c1c',
-          'line-width': 1.6,
-          'line-dasharray': [2.2, 1.4],
-        },
+        filter: ['==', ['get', 'kind'], 'kcic'],
+        paint: { 'line-color': ['get', 'colour'], 'line-width': 1.8, 'line-dasharray': [2.2, 1.4] },
+      })
+      map.on('mouseenter', 'rail-lines', () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+      map.on('mouseleave', 'rail-lines', () => {
+        map.getCanvas().style.cursor = ''
+      })
+      map.on('click', 'rail-lines', (e) => {
+        const f = e.features?.[0]
+        if (!f) return
+        popupRef.current?.remove()
+        popupRef.current = new Popup({ offset: 6, closeButton: true, maxWidth: '260px', className: 'wg-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div class="pop"><small class="pop-kicker">Jalur rel</small><h4><i class="pop-dot" style="background:${f.properties?.kind === 'mrt' ? MRT_COLOR : f.properties?.kind === 'lrt' || f.properties?.kind === 'lrt_jabodebek' ? LRT_COLOR : escapeHtml(String(f.properties?.colour))}"></i>${escapeHtml(String(f.properties?.name))}</h4><small>Kode lintas ${escapeHtml(String(f.properties?.line))} · geometri OpenStreetMap</small></div>`,
+          )
+          .addTo(map)
+      })
+    }
+
+    /* Koridor BRT TransJakarta 1–14 — shapes.txt GTFS resmi, warna resmi koridor. Ikut toggle halte TransJakarta. */
+    if (!map.getSource('tj-routes')) {
+      map.addSource('tj-routes', { type: 'geojson', data: tjRoutes as GeoJSON.FeatureCollection })
+      map.addLayer({
+        id: 'tj-routes-casing',
+        type: 'line',
+        source: 'tj-routes',
+        minzoom: 9.5,
+        paint: { 'line-color': '#ffffff', 'line-width': 4, 'line-opacity': 0.8 },
+      })
+      map.addLayer({
+        id: 'tj-routes',
+        type: 'line',
+        source: 'tj-routes',
+        minzoom: 9.5,
+        paint: { 'line-color': TJ_COLOR, 'line-width': 2.4, 'line-opacity': 0.9 },
+      })
+      map.on('mouseenter', 'tj-routes', () => {
+        map.getCanvas().style.cursor = 'pointer'
+      })
+      map.on('mouseleave', 'tj-routes', () => {
+        map.getCanvas().style.cursor = ''
+      })
+      map.on('click', 'tj-routes', (e) => {
+        const f = e.features?.[0]
+        if (!f) return
+        popupRef.current?.remove()
+        popupRef.current = new Popup({ offset: 6, closeButton: true, maxWidth: '260px', className: 'wg-popup' })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div class="pop"><small class="pop-kicker">TransJakarta BRT</small><h4><i class="pop-dot" style="background:${TJ_COLOR}"></i>${escapeHtml(String(f.properties?.name))}</h4><small>${escapeHtml(String(f.properties?.route))} · GTFS resmi</small></div>`,
+          )
+          .addTo(map)
+      })
+    }
+
+    /* Usulan rute pengumpan untuk kandidat yang disorot (garis putus-putus). */
+    if (!map.getSource('proposal')) {
+      map.addSource('proposal', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+      map.addLayer({
+        id: 'proposal-casing',
+        type: 'line',
+        source: 'proposal',
+        paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.9 },
+      })
+      map.addLayer({
+        id: 'proposal-line',
+        type: 'line',
+        source: 'proposal',
+        paint: { 'line-color': '#0284c7', 'line-width': 3, 'line-dasharray': [1.5, 1.2] },
       })
     }
 
@@ -240,10 +332,10 @@ export default function MapView({
         type: 'circle',
         source: 'stops',
         filter: ['==', ['get', 'jak'], 0],
-        minzoom: 10.5,
+        minzoom: 11.5,
         paint: {
           'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 2.2, 14, 5.5],
-          'circle-color': '#1d4ed8',
+          'circle-color': TJ_COLOR,
           'circle-stroke-color': '#ffffff',
           'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 11, 0.5, 14, 1.2],
           'circle-opacity': 0.9,
@@ -351,7 +443,7 @@ export default function MapView({
         type: 'fill',
         source: 'hex',
         filter: ['==', ['get', 'gap'], ''],
-        paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.1 },
+        paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.16 },
       })
       map.addLayer({
         id: 'hex-gap-fill',
@@ -404,18 +496,21 @@ export default function MapView({
             why = `Ramai, tetapi <b>jadwalnya tipis</b>: skor layanan ${Math.round(hb.service * 100)}/100 (±${hb.railDep} kereta, ±${hb.busDep} bus pada blok ini).`
             next = 'Kandidat penambahan frekuensi pada blok ini.'
           } else if (hb.cls === 'ramai') {
-            why = `Ramai dan <b>layanannya memadai</b> (skor ${Math.round(hb.service * 100)}/100). Bukan kandidat pada blok ini.`
-            next = 'Coba geser ke blok lain — kesenjangan bisa muncul pada jam berbeda.'
+            why = `Ramai dan <b>layanannya memadai</b> (skor ${Math.round(hb.service * 100)}/100) — tidak ada kesenjangan pada blok ini.`
+            next = ''
           } else if (hb.cls) {
-            why = 'Belum tergolong ramai pada blok ini, jadi tidak dinilai kesenjangannya.'
-            next = 'Geser blok waktu untuk melihat kapan kawasan ini paling hidup.'
+            why = 'Belum tergolong ramai pada blok ini (di bawah 25% teratas), jadi tidak dinilai kesenjangannya.'
+            next = ''
           } else {
             why = 'Tidak ada laporan warga pada blok ini. SIMPUL tidak menebak — ini bukan berarti sepi.'
-            next = 'Kawasan seperti ini prioritas untuk survei lapangan berikutnya.'
+            next = ''
           }
+          if (hb.gap && !hit) next = `Termasuk kesenjangan, tetapi belum masuk 12 kandidat teratas (${cell.evidence.length} laporan di sel ini).`
           const action = hit
             ? `<button type="button" class="pop-btn" data-rec="${escapeHtml(hit.rec.id)}">Buka kandidat #${hit.index + 1} →</button>`
-            : `<p class="pop-next">${next}</p>`
+            : next
+              ? `<p class="pop-next">${next}</p>`
+              : ''
 
           popupRef.current?.remove()
           const popup = new Popup({ offset: 8, closeButton: true, maxWidth: '300px', className: 'wg-popup' })
@@ -475,12 +570,17 @@ export default function MapView({
   }
 
   function applyRail(map: MLMap) {
-    const on = latest.current.showRail
-    for (const id of ['rail-casing', 'rail-ka', 'rail-kcic']) {
+    const kinds = railKindsOn(latest.current)
+    for (const id of ['rail-casing', 'rail-lines']) {
       if (!map.getLayer(id)) continue
-      map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none')
+      map.setFilter(id, ['in', ['get', 'kind'], ['literal', kinds]])
     }
-    if (map.getLayer('stops-tj')) map.setLayoutProperty('stops-tj', 'visibility', latest.current.showTj ? 'visible' : 'none')
+    if (map.getLayer('rail-kcic')) map.setLayoutProperty('rail-kcic', 'visibility', latest.current.showKrl ? 'visible' : 'none')
+    for (const id of ['tj-routes-casing', 'tj-routes']) {
+      if (!map.getLayer(id)) continue
+      map.setLayoutProperty(id, 'visibility', latest.current.showTjRoutes ? 'visible' : 'none')
+    }
+    if (map.getLayer('stops-tj')) map.setLayoutProperty('stops-tj', 'visibility', latest.current.showTjStops ? 'visible' : 'none')
     if (map.getLayer('stops-jak')) map.setLayoutProperty('stops-jak', 'visibility', latest.current.showJak ? 'visible' : 'none')
   }
 
@@ -489,11 +589,8 @@ export default function MapView({
     const map = mapRef.current
     if (!map) return
     markersRef.current.forEach((m) => m.remove())
-    if (!showNodes) {
-      markersRef.current = []
-      return
-    }
-    markersRef.current = model.nodes.map((n) => {
+    const kinds = new Set(railKindsOn({ showKrl, showMrt, showLrt }))
+    markersRef.current = model.nodes.filter((n) => kinds.has(n.kind)).map((n) => {
       const dep = n.depByBlock?.[block] ?? 0
       const service = Math.min(1, dep / model.refDep.rail[block])
       const el = document.createElement('button')
@@ -517,7 +614,29 @@ export default function MapView({
       markersRef.current = []
     }
      
-  }, [model, block, mode, showNodes])
+  }, [model, block, mode, showKrl, showMrt, showLrt])
+
+  /* ── Usulan rute pengumpan kandidat aktif ────────────────────────────── */
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !readyRef.current) return
+    const src = map.getSource('proposal') as GeoJSONSource | undefined
+    if (!src) return
+    const rec = recs.find((r) => r.id === activeRecId)
+    const route = mode === 'gap' ? rec?.proposal.route : undefined
+    src.setData({
+      type: 'FeatureCollection',
+      features: route
+        ? [
+            {
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'LineString', coordinates: [[route.from.lon, route.from.lat], [route.to.lon, route.to.lat]] },
+            },
+          ]
+        : [],
+    })
+  }, [recs, activeRecId, mode])
 
   /* ── Marker rekomendasi bernomor — nomor di peta = nomor di kartu ─────── */
   useEffect(() => {
@@ -566,7 +685,7 @@ export default function MapView({
     const map = mapRef.current
     if (map && readyRef.current) applyRail(map)
      
-  }, [showRail, showTj, showJak])
+  }, [showKrl, showMrt, showLrt, showTjRoutes, showTjStops, showJak])
 
   useEffect(() => {
     const map = mapRef.current

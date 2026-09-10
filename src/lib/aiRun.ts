@@ -65,7 +65,10 @@ const recDetail = (r: Recommendation, i: number) => ({
         ? '3–7 laporan'
         : '< 3 laporan — perlu survei lanjutan',
   penjelasan: r.body,
-  usulan: r.action.replace(/^Jenis kandidat: /, ''),
+  usulan: r.proposal.summary,
+  langkah_usulan: r.proposal.steps,
+  perkiraan_indikatif: r.proposal.estimate.map((e) => `${e.label}: ${e.value} — ${e.how}`),
+  catatan_usulan: r.proposal.caveat,
   stasiun_terdekat: r.nearestNode.name,
   pusat: { lat: Number(r.focus.lat.toFixed(5)), lon: Number(r.focus.lon.toFixed(5)) },
 })

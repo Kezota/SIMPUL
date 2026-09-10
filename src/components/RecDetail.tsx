@@ -2,20 +2,24 @@ import { useEffect } from 'react'
 
 import type { SimpulModel } from '../lib/engine'
 import { formatDistance } from '../lib/geo'
+import type { GlossaryKey } from '../lib/glossary'
 import type { Recommendation } from '../lib/recommend'
 import { TIME_BLOCKS } from '../lib/timeblocks'
+import InfoTip from './InfoTip'
 
 const KIND_LABEL = { jangkauan: 'Tak terjangkau', jadwal: 'Frekuensi rendah' } as const
 const CONF_TEXT = {
-  tinggi: 'Tinggi — didukung ≥ 8 laporan di ≥ 2 sel bersebelahan.',
-  sedang: 'Sedang — 3–7 laporan; layak ditinjau, sebaiknya dicek lapangan.',
-  rendah: 'Rendah — kurang dari 3 laporan; perlu survei sebelum ditindaklanjuti.',
+  tinggi: 'Didukung ≥ 8 laporan di ≥ 2 sel bersebelahan.',
+  sedang: '3–7 laporan; layak ditinjau, sebaiknya dicek lapangan.',
+  rendah: 'Kurang dari 3 laporan; perlu survei sebelum ditindaklanjuti.',
 } as const
+const CONF_DOTS = { tinggi: 3, sedang: 2, rendah: 1 } as const
+const FACT_KEY: Record<string, GlossaryKey> = { 'Sel ramai': 'sel_ramai', Bukti: 'bukti', 'Ke layanan': 'ke_layanan', 'Skor layanan': 'skor_layanan' }
 
 /**
- * Detail lengkap satu kandidat (modal). Semua angka dari mesin hitung; tidak
- * ada yang dikarang. Tujuannya menjawab: seberapa kuat buktinya, kapan
- * ramainya, layanan apa yang terdekat, dan apa langkah wajarnya.
+ * Detail satu kandidat (modal). Dibagi jadi blok-blok pendek: angka →
+ * apa yang terjadi → kapan → layanan terdekat → usulan → keyakinan.
+ * Semua angka dari mesin hitung.
  */
 export default function RecDetail({
   rec,
@@ -48,7 +52,7 @@ export default function RecDetail({
   const avgNodeM = cells.length ? cells.reduce((s, c) => s + c.nearestNodeDistM, 0) / cells.length : 0
   const stop = cells[0]?.nearestStop ?? null
   const avgStopM = cells.length ? cells.reduce((s, c) => s + c.nearestStopDistM, 0) / cells.length : 0
-  const ramaiN = cells.reduce((s, c) => s + c.evidence.filter((e) => e.crowd === 'ramai').length, 0)
+  const blockName = rec.block ? TIME_BLOCKS.find((b) => b.id === rec.block)?.label : ''
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -56,6 +60,7 @@ export default function RecDetail({
         <button type="button" className="modal-close" aria-label="Tutup" onClick={onClose}>
           ×
         </button>
+
         <div className="rd-head">
           <span className={`rc-num rc-num-${rec.kind}`}>{index + 1}</span>
           <div>
@@ -70,20 +75,25 @@ export default function RecDetail({
             <span key={f.label}>
               <b>{f.value}</b>
               <small>{f.label}</small>
+              {FACT_KEY[f.label] && <InfoTip k={FACT_KEY[f.label]} corner />}
             </span>
           ))}
           <span>
-            <b>{ramaiN}</b>
-            <small>laporan sebut "ramai"</small>
+            <b>{blockName}</b>
+            <small>blok paling ramai</small>
           </span>
         </div>
 
-        <section>
+        <section className="rd-card">
           <h3>Apa yang terjadi</h3>
-          <p>{rec.body}</p>
+          <ul className="rd-facts">
+            {rec.highlights.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ul>
         </section>
 
-        <section>
+        <section className="rd-card">
           <h3>Kapan kawasan ini hidup</h3>
           <div className="rd-chart">
             {perBlock.map((b) => (
@@ -94,40 +104,67 @@ export default function RecDetail({
               </div>
             ))}
           </div>
-          <p className="rd-note">Batang biru = blok paling ramai sekaligus blok yang layanannya dinilai kurang.</p>
+          <p className="rd-note">Batang biru = blok paling ramai; pada blok itulah layanannya dinilai kurang.</p>
         </section>
 
-        <section>
+        <section className="rd-card">
           <h3>Layanan terdekat</h3>
           <ul className="rd-list">
             <li>
-              <b>{node.name}</b> · {formatDistance(avgNodeM)} · ±{node.depByBlock?.[rec.block ?? 'sore'] ?? 0} kereta pada blok{' '}
-              {rec.block ? TIME_BLOCKS.find((b) => b.id === rec.block)?.label : ''}
-              {node.scheduleSource && <small>{node.scheduleSource}</small>}
+              <b>{node.name}</b>
+              <span className="rd-list-meta">
+                {formatDistance(avgNodeM)} · ±{node.depByBlock?.[rec.block ?? 'sore'] ?? 0} kereta pada blok {blockName}
+              </span>
             </li>
             {stop && (
               <li>
-                <b>{stop.name}</b> · {formatDistance(avgStopM)} · ±{stop.dep[rec.block ?? 'sore']} bus pada blok itu
-                <small>{stop.jak ? 'Halte JakLingko / Mikrotrans' : 'Halte TransJakarta'} · GTFS resmi</small>
+                <b>Halte {stop.name}</b>
+                <span className="rd-list-meta">
+                  {formatDistance(avgStopM)} · ±{stop.dep[rec.block ?? 'sore']} bus pada blok {blockName} · {stop.jak ? 'JakLingko' : 'TransJakarta'}
+                </span>
               </li>
             )}
           </ul>
         </section>
 
-        <section className="rd-action">
-          <h3>Langkah yang wajar</h3>
-          <p>
-            {rec.action.replace(/^Jenis kandidat: /, '')}
-            <br />
-            <small>Untuk {rec.target}. SIMPUL tidak menentukan jumlah armada atau rute rinci — itu keputusan operator/regulator.</small>
-          </p>
+        <section className="rd-card rd-action">
+          <h3>
+            Usulan tindakan <InfoTip k="perkiraan_armada" />
+          </h3>
+          <p className="rd-summary">{rec.proposal.summary}</p>
+          <small className="rd-target">Untuk {rec.target}</small>
+          <ol className="rd-steps">
+            {rec.proposal.steps.map((st) => (
+              <li key={st}>{st}</li>
+            ))}
+          </ol>
+          <div className="rd-est">
+            {rec.proposal.estimate.map((e) => (
+              <span key={e.label}>
+                <b>{e.value}</b>
+                <small>{e.label}</small>
+                <InfoTip text={e.how} corner />
+              </span>
+            ))}
+          </div>
+          <p className="rd-caveat">{rec.proposal.caveat}</p>
         </section>
 
-        <section>
-          <h3>Seberapa yakin</h3>
-          <p>{CONF_TEXT[rec.confidence]}</p>
+        <section className="rd-card rd-conf">
+          <h3>
+            Seberapa yakin <InfoTip k="keyakinan" />
+          </h3>
+          <div className="rd-conf-row">
+            <i className="rc-conf" aria-hidden="true">
+              {[1, 2, 3].map((d) => (
+                <b key={d} className={d <= CONF_DOTS[rec.confidence] ? 'on' : undefined} />
+              ))}
+            </i>
+            <b className="rd-conf-word">{rec.confidence}</b>
+            <span>{CONF_TEXT[rec.confidence]}</span>
+          </div>
           <p className="rd-note">
-            Peringkat #{index + 1} dari skor {rec.score.toFixed(1)} — kantong yang lebih luas, laporannya lebih banyak, dan layanannya lebih tipis naik lebih dulu. Rumus di tab Metode &amp; data.
+            Peringkat #{index + 1} (skor {rec.score.toFixed(1)}) <InfoTip k="skor_peringkat" />
           </p>
         </section>
 

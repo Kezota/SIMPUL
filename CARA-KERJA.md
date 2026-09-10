@@ -135,6 +135,21 @@ Layar masuk (dummy, tanpa kata sandi) memilih satu dari empat peran: Perencana K
 
 Rumusnya (tab Metode & data): tak terjangkau = `3 × sel + bukti`; frekuensi rendah = `2 × sel + bukti + 5 × (1 − skor layanan)`. Ini urutan *bukti terkuat untuk ditinjau dulu*, bukan urutan investasi; angka rumusnya sengaja tidak ditampilkan di kartu supaya panel tetap ringkas. Panel juga bisa diurutkan menurut bukti terbanyak atau keyakinan tertinggi; nomor kandidat tetap mengikuti skor supaya sama dengan nomor di peta.
 
+
+### Usulan tindakan & angka indikatif
+
+Tiap kandidat membawa `proposal` (`src/lib/recommend.ts`): satu kalimat usulan, langkah konkret, dan angka indikatif yang cara hitungnya ditulis di tombol "i":
+
+- **Frekuensi rendah** — target skor layanan 60/100 dari acuan simpul tersibuk pada blok itu → tambahan keberangkatan = ⌈0,6 × acuan⌉ − yang ada. Headway = jam blok × 60 ÷ (keberangkatan ÷ 2 arah). Rangkaian/armada tambahan ≈ (tambahan ÷ 2) × siklus PP (asumsi 120 menit kereta, 90 menit bus) ÷ menit dalam blok, dibulatkan ke atas.
+- **Tak terjangkau** — usulan rute pengumpan dari layanan terdekat (halte bila lebih dekat dari stasiun) ke pusat kantong, digambar putus-putus di peta. Headway uji coba 15 menit; siklus PP = 2 × panjang ÷ 15 km/jam + 10 menit layover; armada = ⌈siklus ÷ headway⌉.
+
+Semua angka itu **indikatif** untuk membuka kajian, bukan rencana operasi — kapasitas rangkaian, slot jalur, dan biaya tidak dihitung SIMPUL.
+
+### Jalur di peta
+
+- Jalur rel = relasi rute OpenStreetMap (KAI Commuter B/C/R/T/TP/A/LW, MRT, LRT Jakarta, LRT Jabodebek, Whoosh), diunduh 10 Sep 2026, satu warna per lintas mengikuti warna resmi operator → `src/data/railLines.json`.
+- Koridor BRT TransJakarta 1–14 = `shapes.txt` GTFS resmi (satu shape terbanyak per arah, disederhanakan ±12 m) dengan `route_color` resmi → `src/data/tjRoutes.json`. Ikut toggle "TransJakarta".
+
 ## 7. Batasan yang perlu diketahui pembaca
 
 - **Sebaran laporan mengikuti tempat surveyor bekerja** (sebagian besar Agustus 2026, tim-tim peserta lomba), bukan sampel acak. Kawasan tanpa laporan tidak berarti sepi.

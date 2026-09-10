@@ -66,10 +66,12 @@ export default function App() {
 
   const [block, setBlock] = useState<BlockId>('sore')
   const [mode, setMode] = useState<MapMode>(role?.defaultMode ?? 'denyut')
-  const [showRail, setShowRail] = useState(role?.defaultRail ?? true)
-  const [showNodes, setShowNodes] = useState(true)
+  const [showKrl, setShowKrl] = useState(role?.defaultRail ?? true)
+  const [showMrt, setShowMrt] = useState(role?.defaultRail ?? true)
+  const [showLrt, setShowLrt] = useState(role?.defaultRail ?? true)
   const [detailNode, setDetailNode] = useState<TransitNode | null>(null)
-  const [showTj, setShowTj] = useState(role?.defaultTj ?? false)
+  const [showTjRoutes, setShowTjRoutes] = useState(role?.defaultTj ?? false)
+  const [showTjStops, setShowTjStops] = useState(role?.defaultTj ?? false)
   const [showJak, setShowJak] = useState(role?.defaultJak ?? false)
   const [satellite, setSatellite] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
@@ -87,8 +89,11 @@ export default function App() {
     saveRole(r.id)
     setRole(r)
     setMode(r.defaultMode)
-    setShowRail(r.defaultRail)
-    setShowTj(r.defaultTj)
+    setShowKrl(r.defaultRail)
+    setShowMrt(r.defaultRail)
+    setShowLrt(r.defaultRail)
+    setShowTjRoutes(r.defaultTj)
+    setShowTjStops(r.defaultTj)
     setShowJak(r.defaultJak)
     setTab('rekomendasi')
     setActiveRecId(null)
@@ -229,12 +234,15 @@ export default function App() {
             recs={recs}
             block={block}
             mode={mode}
-            showRail={showRail}
-            showNodes={showNodes}
-            showTj={showTj}
+            showKrl={showKrl}
+            showMrt={showMrt}
+            showLrt={showLrt}
+            showTjRoutes={showTjRoutes}
+            showTjStops={showTjStops}
             showJak={showJak}
             variant={variant}
             focus={focus}
+            activeRecId={activeRecId}
             pin={pin}
             onRecClick={onRecMarkerClick}
             onNodeClick={setDetailNode}
@@ -270,38 +278,63 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              <div className="tool-group" role="group" aria-label="Lapisan peta">
-                <span className="tool-caption">Lapisan</span>
+              <div className="tool-group" role="group" aria-label="Lapisan rel">
+                <span className="tool-caption">Rel</span>
                 <div className="tool-row">
                   <button
                     type="button"
-                    className={`chip-toggle${showNodes ? ' on' : ''}`}
-                    aria-pressed={showNodes}
-                    onClick={() => setShowNodes(!showNodes)}
-                    title="Stasiun KRL/MRT/LRT & terminal. Klik stasiunnya untuk jadwal per blok dan kawasan sekitarnya."
+                    className={`chip-toggle${showKrl ? ' on' : ''}`}
+                    aria-pressed={showKrl}
+                    onClick={() => setShowKrl(!showKrl)}
+                    title="Stasiun & jalur KRL Commuter (juga Whoosh). Klik stasiun untuk jadwal per blok."
                   >
-                    <span className="chip-ico" aria-hidden="true">🚉</span>
-                    <span className="chip-txt">Stasiun</span>
+                    <span className="chip-ico dot-line" style={{ background: '#e11d2b' }} aria-hidden="true" />
+                    <span className="chip-txt">KRL</span>
                   </button>
                   <button
                     type="button"
-                    className={`chip-toggle${showRail ? ' on' : ''}`}
-                    aria-pressed={showRail}
-                    onClick={() => setShowRail(!showRail)}
-                    title="Jalur KRL/MRT/LRT/Whoosh (OpenStreetMap)"
+                    className={`chip-toggle${showMrt ? ' on' : ''}`}
+                    aria-pressed={showMrt}
+                    onClick={() => setShowMrt(!showMrt)}
+                    title="Stasiun & jalur MRT Jakarta"
                   >
-                    <span className="chip-ico" aria-hidden="true">🛤</span>
-                    <span className="chip-txt">Rel</span>
+                    <span className="chip-ico dot-line" style={{ background: '#0d9488' }} aria-hidden="true" />
+                    <span className="chip-txt">MRT</span>
                   </button>
                   <button
                     type="button"
-                    className={`chip-toggle${showTj ? ' on' : ''}`}
-                    aria-pressed={showTj}
-                    onClick={() => setShowTj(!showTj)}
-                    title="Halte TransJakarta BRT & non-BRT (GTFS resmi). Klik titiknya untuk jumlah bus per blok."
+                    className={`chip-toggle${showLrt ? ' on' : ''}`}
+                    aria-pressed={showLrt}
+                    onClick={() => setShowLrt(!showLrt)}
+                    title="Stasiun & jalur LRT Jakarta dan LRT Jabodebek"
+                  >
+                    <span className="chip-ico dot-line" style={{ background: '#7c3aed' }} aria-hidden="true" />
+                    <span className="chip-txt">LRT</span>
+                  </button>
+                </div>
+              </div>
+              <div className="tool-group" role="group" aria-label="Lapisan bus">
+                <span className="tool-caption">Bus</span>
+                <div className="tool-row">
+                  <button
+                    type="button"
+                    className={`chip-toggle${showTjRoutes ? ' on' : ''}`}
+                    aria-pressed={showTjRoutes}
+                    onClick={() => setShowTjRoutes(!showTjRoutes)}
+                    title="Garis koridor BRT TransJakarta 1–14 (GTFS resmi). Klik garisnya untuk nama koridor."
+                  >
+                    <span className="chip-ico line-ico" aria-hidden="true" />
+                    <span className="chip-txt">Koridor TJ</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip-toggle${showTjStops ? ' on' : ''}`}
+                    aria-pressed={showTjStops}
+                    onClick={() => setShowTjStops(!showTjStops)}
+                    title="Titik halte TransJakarta BRT & non-BRT. Klik haltenya untuk jumlah bus per blok."
                   >
                     <span className="chip-ico dot-tj" aria-hidden="true" />
-                    <span className="chip-txt">TransJakarta</span>
+                    <span className="chip-txt">Halte TJ</span>
                   </button>
                   <button
                     type="button"
@@ -341,7 +374,7 @@ export default function App() {
                   <span>ramai</span>
                 </div>
                 <small>
-                  Tanpa warna = <b>tidak ada data</b>, bukan sepi.
+                  Kuning = sedikit laporan, merah = paling ramai (relatif se-wilayah). Tanpa warna = <b>tidak ada data</b>, bukan sepi.
                 </small>
               </>
             ) : (
@@ -353,8 +386,32 @@ export default function App() {
                 <div className="gap-legend-row" title="Kawasan ramai, ada layanan, tetapi jadwalnya tipis pada blok ini">
                   <i style={{ background: '#f97316' }} /> Frekuensi rendah
                 </div>
-                <small>Nomor merah/oranye = kandidat di panel. Stasiun bertanda merah = jadwal tipis pada blok ini. Klik stasiun untuk detail.</small>
+                <div className="gap-legend-row" title="Ada laporan warga, tetapi tidak tergolong kesenjangan pada blok ini">
+                  <i style={{ background: '#cbd5e1' }} /> Ada data, layanan cukup
+                </div>
+                <small>Nomor = kandidat di panel · garis putus biru = usulan rute pengumpan kandidat yang dipilih · klik stasiun/jalur untuk detail.</small>
               </>
+            )}
+            {(showKrl || showMrt || showLrt || showTjRoutes) && (
+              <details className="line-legend-details">
+                <summary>Warna jalur</summary>
+                <div className="line-legend">
+                  {showKrl && (
+                    <>
+                      <span><i style={{ background: '#e11d2b' }} /> KRL Bogor</span>
+                      <span><i style={{ background: '#0d6bbf' }} /> KRL Cikarang</span>
+                      <span><i style={{ background: '#16a34a' }} /> KRL Rangkasbitung</span>
+                      <span><i style={{ background: '#8b5a2b' }} /> KRL Tangerang</span>
+                      <span><i style={{ background: '#ec4899' }} /> KRL Tj. Priuk</span>
+                      <span><i style={{ background: '#2e2f70' }} /> KRL Bandara</span>
+                      <span><i className="dash" style={{ color: '#8C0023' }} /> Whoosh</span>
+                    </>
+                  )}
+                  {showMrt && <span><i style={{ background: '#0d9488' }} /> MRT</span>}
+                  {showLrt && <span><i style={{ background: '#7c3aed' }} /> LRT (Jakarta & Jabodebek)</span>}
+                  {showTjRoutes && <span><i style={{ background: '#d97706' }} /> Koridor BRT TransJakarta</span>}
+                </div>
+              </details>
             )}
           </div>
 

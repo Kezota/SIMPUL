@@ -5,6 +5,7 @@ import { formatDistance } from '../lib/geo'
 import type { Recommendation } from '../lib/recommend'
 import { TIME_BLOCKS, type BlockId } from '../lib/timeblocks'
 import type { NodeKind, TransitNode } from '../lib/types'
+import InfoTip from './InfoTip'
 
 const KIND_LABEL: Record<NodeKind, string> = {
   krl: 'Stasiun KRL Commuter',
@@ -92,19 +93,31 @@ export default function StationDetail({
         <div className="rd-stats">
           <span>
             <b>±{now.dep}</b>
-            <small>kereta pada blok {now.label}</small>
+            <small>
+              kereta pada blok {now.label}
+              <InfoTip k="kereta_blok" corner />
+            </small>
           </span>
           <span>
             <b>{Math.round(now.service * 100)}/100</b>
-            <small>skor layanan ({svcWord(now.service)})</small>
+            <small>
+              skor layanan ({svcWord(now.service)})
+              <InfoTip k="skor_layanan" corner />
+            </small>
           </span>
           <span>
             <b>{now.ramai}</b>
-            <small>sel ramai dalam 2 km</small>
+            <small>
+              sel ramai dalam 2 km
+              <InfoTip k="sel_ramai" corner />
+            </small>
           </span>
           <span>
             <b>{reports}</b>
-            <small>laporan warga sekitar</small>
+            <small>
+              laporan aktivitas dari warga (2 km)
+              <InfoTip k="laporan_warga" corner />
+            </small>
           </span>
         </div>
 
@@ -122,7 +135,7 @@ export default function StationDetail({
           </div>
           <p className="rd-note">
             {thinnest.service <= 0.35
-              ? `Paling tipis pada blok ${thinnest.label} (${thinnest.range}) — skor layanan ${Math.round(thinnest.service * 100)}/100.`
+              ? `Paling tipis pada blok ${thinnest.label} — skor layanan ${Math.round(thinnest.service * 100)}/100.`
               : 'Tidak ada blok dengan jadwal tipis di stasiun ini.'}{' '}
             Skor layanan = keberangkatan dibanding acuan stasiun tersibuk pada blok yang sama.
           </p>
@@ -145,7 +158,7 @@ export default function StationDetail({
                 ))}
               </div>
               <p className="rd-note">
-                Paling hidup pada blok {busiest.label} ({busiest.range}); saat itu ±{busiest.dep} kereta, layanan {svcWord(busiest.service)}.
+                Paling hidup pada blok {busiest.label}; saat itu ±{busiest.dep} kereta, layanan {svcWord(busiest.service)}.
                 {busiest.gap > 0 ? ` ${busiest.gap} sel di sekitarnya tergolong kesenjangan.` : ''}
               </p>
             </>

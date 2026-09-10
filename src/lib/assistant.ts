@@ -111,7 +111,7 @@ export function askSimpul(
       .sort((x, y) => y.blocks[b].total - x.blocks[b].total)
     const gaps = busy.filter((c) => c.blocks[b].gap !== null)
     answer = busy.length
-      ? `Pada blok ${blockMeta(b).label} (${blockMeta(b).range}) ada ${busy.length} sel kawasan kelas RAMAI. ${gaps.length} di antaranya layanan transitnya rendah pada jam itu — inilah "kawasan yang masih hidup ketika layanan menipis". Peta sudah dipindah ke blok tersebut.`
+      ? `Pada blok ${blockMeta(b).label} ada ${busy.length} sel kawasan kelas RAMAI. ${gaps.length} di antaranya layanan transitnya rendah pada jam itu — inilah "kawasan yang masih hidup ketika layanan menipis". Peta sudah dipindah ke blok tersebut.`
       : `Pada blok ${blockMeta(b).label} tidak ada sel yang masuk kelas RAMAI dari data yang ada. Ingat: sel abu-abu artinya "tidak ada data", bukan "sepi".`
     if (busy[0]) focus = { ...busy[0].center, zoom: 13 }
     setBlock = b
@@ -136,7 +136,7 @@ export function askSimpul(
     const peak = per[0]
     answer = `${node.name}: ${near.length} sel kawasan dalam 2 km. Kegiatan paling tinggi pada blok ${blockMeta(
       peak.b,
-    ).label} (${blockMeta(peak.b).range}) dengan ${peak.pts.toFixed(1)} poin. Urutan blok dari yang paling hidup: ${per
+    ).label} dengan ${peak.pts.toFixed(1)} poin. Urutan blok dari yang paling hidup: ${per
       .map((p) => blockMeta(p.b).label)
       .join(' → ')}. Peta dipindah ke blok puncaknya.`
     setBlock = peak.b
@@ -156,7 +156,7 @@ export function askSimpul(
     const gapTotal = summaries.reduce((a, b) => a + b.gapJadwal + b.gapJangkauan, 0)
     answer = `Dari ${model.counts.activities.toLocaleString('id-ID')} laporan warga Community Maps: blok paling hidup se-kota adalah ${blockMeta(
       s.block,
-    ).label} (${blockMeta(s.block).range}). Total ${gapTotal} sel×blok menunjukkan kesenjangan (ramai tapi layanan rendah). Geser slider untuk melihat kota "bernapas", atau tanya "rekomendasinya apa".`
+    ).label}. Total ${gapTotal} sel×blok menunjukkan kesenjangan (ramai tapi layanan rendah). Geser slider untuk melihat kota "bernapas", atau tanya "rekomendasinya apa".`
     facts.push(
       { label: 'Blok terhidup', value: blockMeta(s.block).label },
       { label: 'Sel ber-gap', value: `${gapTotal}` },
