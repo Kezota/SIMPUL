@@ -3287,3 +3287,65 @@ body {
   border-radius: 2px;
   background: #d97706;
 }
+
+/* ── SIMPUL v10: status stasiun ────────────────────────────────────────────── */
+.simpul-node.thin .simpul-node-dot {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #94a3b8;
+}
+.sd-status {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  display: grid;
+  gap: 6px;
+  line-height: 1.5;
+}
+.sd-status b {
+  font-size: 15px;
+}
+.sd-status p {
+  margin: 0;
+  color: var(--text);
+  opacity: 0.9;
+}
+.sd-status .btn {
+  justify-self: start;
+  margin-top: 4px;
+}
+.sd-status-bad {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.sd-status-bad b {
+  color: #b91c1c;
+}
+.sd-status-warn {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+.sd-status-warn b {
+  color: #c2410c;
+}
+.sd-status-ok {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.sd-status-ok b {
+  color: #15803d;
+}
+.app[data-theme='dark'] .sd-status-bad {
+  background: #3f1d1d;
+  border-color: #7f1d1d;
+}
+.app[data-theme='dark'] .sd-status-warn {
+  background: #3f2a1d;
+  border-color: #7c2d12;
+}
+.app[data-theme='dark'] .sd-status-ok {
+  background: #14532d33;
+  border-color: #166534;
+}

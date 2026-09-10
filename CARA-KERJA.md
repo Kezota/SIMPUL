@@ -147,7 +147,7 @@ Semua angka itu **indikatif** untuk membuka kajian, bukan rencana operasi — ka
 
 ### Jalur di peta
 
-- Jalur rel = relasi rute OpenStreetMap (KAI Commuter B/C/R/T/TP/A/LW, MRT, LRT Jakarta, LRT Jabodebek, Whoosh), diunduh 10 Sep 2026, satu warna per lintas mengikuti warna resmi operator → `src/data/railLines.json`.
+- Jalur rel = relasi rute OpenStreetMap (KAI Commuter B/C/R/T/TP/A/LW, MRT, LRT Jakarta, LRT Jabodebek), diunduh 10 Sep 2026, satu warna per lintas mengikuti warna resmi operator → `src/data/railLines.json`.
 - Koridor BRT TransJakarta 1–14 = `shapes.txt` GTFS resmi (satu shape terbanyak per arah, disederhanakan ±12 m) dengan `route_color` resmi → `src/data/tjRoutes.json`. Ikut toggle "TransJakarta".
 
 ## 7. Batasan yang perlu diketahui pembaca

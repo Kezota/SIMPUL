@@ -72,6 +72,19 @@ export default function StationDetail({
     })
   const svcWord = (v: number) => (v <= 0.35 ? 'tipis' : v < 0.7 ? 'sedang' : 'memadai')
 
+  // Status untuk blok yang sedang dipilih: tipis + ramai + ada kandidat = masalah; tipis + sepi = wajar.
+  const thin = now.service <= 0.35
+  const busy = now.ramai > 0
+  const linkedJadwal = linked.filter(({ r }) => r.kind === 'jadwal')
+  const hit = linkedJadwal.find(({ r }) => r.block === block) ?? linkedJadwal[0]
+  const status = thin
+    ? hit
+      ? { tone: 'bad', title: `Jadwal tipis pada blok ${now.label} dan kawasan sekitarnya ramai — ini masalah.`, body: hit.r.proposal.summary, rec: hit }
+      : busy
+        ? { tone: 'warn', title: `Jadwal tipis pada blok ${now.label} dan ada ${now.ramai} sel ramai di sekitarnya.`, body: 'Belum masuk 12 kandidat teratas karena buktinya masih sedikit. Layak dicek lapangan.', rec: null }
+        : { tone: 'ok', title: `Jadwal tipis pada blok ${now.label}, tetapi kawasan sekitarnya tidak ramai.`, body: 'Wajar untuk jam ini — tidak perlu tindakan, cukup dipantau.', rec: null }
+    : { tone: 'ok', title: `Layanan ${svcWord(now.service)} pada blok ${now.label}.`, body: hit ? `Perhatikan blok ${TIME_BLOCKS.find((b) => b.id === hit.r.block)?.label}: kawasan sekitar ramai saat jadwal tipis (kandidat #${hit.i + 1}).` : 'Tidak ada kesenjangan yang tercatat di stasiun ini.', rec: hit }
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <div className="modal rd sd" role="dialog" aria-modal="true" aria-labelledby="sd-title" onClick={(e) => e.stopPropagation()}>
@@ -88,6 +101,16 @@ export default function StationDetail({
               {node.scheduleSource ?? 'Jadwal: perkiraan headway operator'}
             </p>
           </div>
+        </div>
+
+        <div className={`sd-status sd-status-${status.tone}`} role="status">
+          <b>{status.title}</b>
+          <p>{status.body}</p>
+          {status.rec && (
+            <button type="button" className="btn small" onClick={() => onOpenRec(status.rec!.r, status.rec!.i)}>
+              Buka kandidat #{status.rec.i + 1} →
+            </button>
+          )}
         </div>
 
         <div className="rd-stats">

@@ -13,7 +13,7 @@ Prototipe WebGIS tim COOK untuk MAPID WebGIS Competition 2026 (*Maps That Think!
 - 💬 **Tanya AI** — Gemini dengan *function calling*: model memilih alat (ringkasan kota, sel ramai, daftar/detail/banding kandidat, profil kawasan, gerakkan peta), angka dijalankan mesin hitung di browser; tanpa kunci API otomatis jatuh ke mode aturan
 - 👤 **Login berbasis peran** (dummy, tanpa kata sandi) — Perencana KAI Commuter, Analis Jaringan TransJakarta, Regulator Dishub, Tamu; peran menentukan tampilan awal, kandidat mana yang tampil lebih dulu, dan sudut pandang asisten
 - 🛠 **Usulan tindakan per kandidat** — langkah konkret + angka indikatif (tambahan keberangkatan, headway, perkiraan armada/rangkaian, rute pengumpan yang digambar di peta), tiap angka punya tombol "i" berisi cara hitungnya
-- 🗺 **Jalur berwarna** — KRL per lintas (Bogor, Cikarang, Rangkasbitung, …), MRT, LRT, Whoosh dari relasi OSM; koridor BRT TransJakarta 1–14 dari GTFS resmi
+- 🗺 **Jalur berwarna** — KRL per lintas (Bogor, Cikarang, Rangkasbitung, …), MRT, LRT dari relasi OSM; koridor BRT TransJakarta 1–14 dari GTFS resmi
 - 🔎 **Cari lokasi** — stasiun, halte, nomor kandidat (lokal) + nama tempat lewat geocoder Nominatim (OSM), dibatasi Jabodetabek
 - 🧭 **Panduan "Cara pakai"** muncul di kunjungan pertama; kontrol peta berlabel (Tampilan / Lapisan); tiap kartu kandidat menampilkan rumus peringkatnya
 - 🗺 **Basemap MAPID MAPS** (light / dark / satellite)

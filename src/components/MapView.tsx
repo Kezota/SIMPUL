@@ -27,7 +27,7 @@ export const TJ_COLOR = '#d97706'
 /** Jenis simpul/jalur yang tampil untuk kombinasi toggle KRL / MRT / LRT. */
 function railKindsOn(t: { showKrl: boolean; showMrt: boolean; showLrt: boolean }): string[] {
   const out: string[] = []
-  if (t.showKrl) out.push('krl', 'stasiun', 'kcic', 'terminal')
+  if (t.showKrl) out.push('krl', 'stasiun', 'terminal')
   if (t.showMrt) out.push('mrt')
   if (t.showLrt) out.push('lrt', 'lrt_jabodebek')
   return out
@@ -232,25 +232,24 @@ export default function MapView({
         id: 'rail-casing',
         type: 'line',
         source: 'rail',
-        paint: { 'line-color': '#ffffff', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 3, 13, 5.5], 'line-opacity': 0.9 },
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': ['interpolate', ['linear'], ['zoom'], 9, 3, 13, 5.5],
+          'line-opacity': 0.9,
+          'line-offset': ['interpolate', ['linear'], ['zoom'], 9, ['case', ['==', ['get', 'line'], 'A'], 2, 0], 13, ['case', ['==', ['get', 'line'], 'A'], 4, 0]],
+        },
       })
       map.addLayer({
         id: 'rail-lines',
         type: 'line',
         source: 'rail',
-        filter: ['!=', ['get', 'kind'], 'kcic'],
         // KRL per lintas (warna resmi); MRT dan LRT masing-masing satu warna supaya gampang dibedakan.
         paint: {
           'line-color': ['case', ['==', ['get', 'kind'], 'mrt'], MRT_COLOR, ['in', ['get', 'kind'], ['literal', ['lrt', 'lrt_jabodebek']]], LRT_COLOR, ['get', 'colour']],
           'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.6, 13, 3.2],
+          // Lin Bandara menumpang rel Duri–Batu Ceper (Lin Tangerang) dan Manggarai–Duri: digeser ke samping supaya keduanya terlihat.
+          'line-offset': ['interpolate', ['linear'], ['zoom'], 9, ['case', ['==', ['get', 'line'], 'A'], 2, 0], 13, ['case', ['==', ['get', 'line'], 'A'], 4, 0]],
         },
-      })
-      map.addLayer({
-        id: 'rail-kcic',
-        type: 'line',
-        source: 'rail',
-        filter: ['==', ['get', 'kind'], 'kcic'],
-        paint: { 'line-color': ['get', 'colour'], 'line-width': 1.8, 'line-dasharray': [2.2, 1.4] },
       })
       map.on('mouseenter', 'rail-lines', () => {
         map.getCanvas().style.cursor = 'pointer'
@@ -575,7 +574,6 @@ export default function MapView({
       if (!map.getLayer(id)) continue
       map.setFilter(id, ['in', ['get', 'kind'], ['literal', kinds]])
     }
-    if (map.getLayer('rail-kcic')) map.setLayoutProperty('rail-kcic', 'visibility', latest.current.showKrl ? 'visible' : 'none')
     for (const id of ['tj-routes-casing', 'tj-routes']) {
       if (!map.getLayer(id)) continue
       map.setLayoutProperty(id, 'visibility', latest.current.showTjRoutes ? 'visible' : 'none')
@@ -590,12 +588,15 @@ export default function MapView({
     if (!map) return
     markersRef.current.forEach((m) => m.remove())
     const kinds = new Set(railKindsOn({ showKrl, showMrt, showLrt }))
+    // Stasiun "bermasalah" = jadwal tipis DAN jadi acuan kandidat frekuensi rendah; tipis saja (kawasan sepi) cuma ditandai halus.
+    const problemIds = new Set(recs.filter((r) => r.kind === 'jadwal').map((r) => r.nearestNode.id))
     markersRef.current = model.nodes.filter((n) => kinds.has(n.kind)).map((n) => {
       const dep = n.depByBlock?.[block] ?? 0
       const service = Math.min(1, dep / model.refDep.rail[block])
+      const thin = mode === 'gap' && service <= 0.35
       const el = document.createElement('button')
       el.type = 'button'
-      el.className = `simpul-node simpul-node-${n.kind}${mode === 'gap' && service <= 0.35 ? ' low' : ''}`
+      el.className = `simpul-node simpul-node-${n.kind}${thin ? (problemIds.has(n.id) ? ' low' : ' thin') : ''}`
       el.innerHTML = `<span class="simpul-node-dot"></span><span class="simpul-node-label">${escapeHtml(
         n.name.replace(/^Stasiun (MRT |LRT )?|^Terminal /, ''),
       )}</span>`
@@ -614,7 +615,7 @@ export default function MapView({
       markersRef.current = []
     }
      
-  }, [model, block, mode, showKrl, showMrt, showLrt])
+  }, [model, recs, block, mode, showKrl, showMrt, showLrt])
 
   /* ── Usulan rute pengumpan kandidat aktif ────────────────────────────── */
   useEffect(() => {

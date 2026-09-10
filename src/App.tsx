@@ -286,7 +286,7 @@ export default function App() {
                     className={`chip-toggle${showKrl ? ' on' : ''}`}
                     aria-pressed={showKrl}
                     onClick={() => setShowKrl(!showKrl)}
-                    title="Stasiun & jalur KRL Commuter (juga Whoosh). Klik stasiun untuk jadwal per blok."
+                    title="Stasiun & jalur KRL Commuter, warna per lintas. Klik stasiun untuk jadwal per blok."
                   >
                     <span className="chip-ico dot-line" style={{ background: '#e11d2b' }} aria-hidden="true" />
                     <span className="chip-txt">KRL</span>
@@ -389,7 +389,9 @@ export default function App() {
                 <div className="gap-legend-row" title="Ada laporan warga, tetapi tidak tergolong kesenjangan pada blok ini">
                   <i style={{ background: '#cbd5e1' }} /> Ada data, layanan cukup
                 </div>
-                <small>Nomor = kandidat di panel · garis putus biru = usulan rute pengumpan kandidat yang dipilih · klik stasiun/jalur untuk detail.</small>
+                <small>
+                  Nomor = kandidat di panel · garis putus biru = usulan rute pengumpan kandidat yang dipilih. Stasiun <b style={{ color: '#dc2626' }}>ring merah</b> = jadwal tipis + kawasan ramai (ada kandidat); ring abu = tipis tapi kawasan sepi. Klik stasiun untuk detail.
+                </small>
               </>
             )}
             {(showKrl || showMrt || showLrt || showTjRoutes) && (
@@ -404,7 +406,6 @@ export default function App() {
                       <span><i style={{ background: '#8b5a2b' }} /> KRL Tangerang</span>
                       <span><i style={{ background: '#ec4899' }} /> KRL Tj. Priuk</span>
                       <span><i style={{ background: '#2e2f70' }} /> KRL Bandara</span>
-                      <span><i className="dash" style={{ color: '#8C0023' }} /> Whoosh</span>
                     </>
                   )}
                   {showMrt && <span><i style={{ background: '#0d9488' }} /> MRT</span>}
