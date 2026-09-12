@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 
 import { AssistantSession, type AssistantEngine, type AssistantResult } from '../lib/aiRun'
+import { GEMINI_API_KEY } from '../lib/aiTools'
 import type { SimpulModel } from '../lib/engine'
 import type { Recommendation } from '../lib/recommend'
 import type { Role } from '../lib/roles'
@@ -20,7 +21,16 @@ function renderAnswer(text: string) {
       // "1. a 2. b 3. c" dalam satu paragraf → dipecah jadi daftar.
       const items = para.split(/(?:^|\s)(?=\d{1,2}\.\s)/).filter((x) => x.trim())
       if (items.length > 1 && items.every((x) => /^\d{1,2}\.\s/.test(x.trim()))) {
-        return [<ol key={para.slice(0, 20)}>{items.map((it, i) => <li key={i}>{inline(it.trim().replace(/^\d{1,2}\.\s/, ''))}</li>)}</ol>]
+        // Nomor dipertahankan (nomor kandidat = nomor di peta), bukan dihitung ulang.
+        return [
+          <ol key={para.slice(0, 20)}>
+            {items.map((it, i) => (
+              <li key={i} value={Number(it.trim().match(/^(\d{1,2})\./)?.[1] ?? i + 1)}>
+                {inline(it.trim().replace(/^\d{1,2}\.\s/, ''))}
+              </li>
+            ))}
+          </ol>,
+        ]
       }
       return para.split('\n').map((line, i) => <p key={`${para.slice(0, 12)}-${i}`}>{inline(line)}</p>)
     })
@@ -52,8 +62,8 @@ export default function AssistantPanel({
   const [turns, setTurns] = useState<Turn[]>([])
   const [openTrace, setOpenTrace] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
-  const [engine, setEngine] = useState<AssistantEngine | null>(null)
   const sessionRef = useRef(new AssistantSession())
+  const [engine, setEngine] = useState<AssistantEngine | null>(GEMINI_API_KEY ? null : 'aturan')
   const listRef = useRef<HTMLDivElement>(null)
 
   const scrollDown = () =>
@@ -89,13 +99,13 @@ export default function AssistantPanel({
           className={`ai-engine ai-engine-${engine ?? 'llm'}`}
           title={
             engine === 'aturan'
-              ? 'Server belum punya kunci API — jawaban dari pencocokan pola sederhana. Angka tetap dari mesin hitung.'
-              : 'AI hanya memilih alat dan merangkai kalimat; setiap angka dijalankan mesin hitung SIMPUL. Jawaban ikut menggerakkan peta.'
+              ? 'Gemini sedang tidak bisa dipakai. Jawaban disusun langsung dari hitungan SIMPUL, jadi tetap bisa dipakai.'
+              : 'AI hanya memilih alat dan merangkai kalimat. Setiap angka dihitung SIMPUL, dan jawaban ikut menggerakkan peta.'
           }
         >
-          {engine === 'aturan' ? 'Mode aturan' : 'AI + alat hitung'}
+          {engine === 'aturan' ? 'Tanpa AI: jawaban dari hitungan' : 'Gemini + hitungan SIMPUL'}
         </span>
-        <span className="ai-status-note">pertanyaan rutin dijawab langsung tanpa AI</span>
+        <span className="ai-status-note">Pertanyaan rutin dijawab langsung tanpa AI</span>
       </div>
 
       <div className="ai-log" ref={listRef}>
@@ -119,6 +129,9 @@ export default function AssistantPanel({
                 <p className="ai-thinking">{t.step ?? 'Memahami pertanyaan…'}</p>
               ) : (
                 <>
+                  {t.r.engine === 'aturan' && t.r.fallbackReason && (
+                    <p className="ai-fallback-note">{t.r.fallbackReason}, jadi jawaban ini disusun langsung dari hitungan SIMPUL.</p>
+                  )}
                   {renderAnswer(t.r.answer)}
                   {t.r.facts.length > 0 && (
                     <div className="ai-facts">
@@ -131,10 +144,10 @@ export default function AssistantPanel({
                   )}
                   <div className="ai-meta">
                     <button type="button" className="link-btn" onClick={() => setOpenTrace(openTrace === i ? null : i)}>
-                      {openTrace === i ? 'Sembunyikan' : 'Lihat'} alat yang dipakai
+                      {openTrace === i ? 'Sembunyikan' : 'Lihat'} cara jawaban ini disusun
                     </button>
                     <span className={`ai-engine ai-engine-${t.r.engine}`}>
-                      {t.r.engine === 'llm' ? 'Gemini + alat hitung' : t.r.engine === 'instan' ? 'langsung dari hitungan' : 'mode aturan'}
+                      {t.r.engine === 'llm' ? 'Gemini + hitungan' : t.r.engine === 'instan' ? 'langsung dari hitungan' : 'tanpa AI'}
                     </span>
                   </div>
                   {openTrace === i && (
@@ -142,7 +155,7 @@ export default function AssistantPanel({
                       {t.r.trace.map((s, k) => (
                         <li key={k}>{s}</li>
                       ))}
-                      {t.r.fallbackReason && <li className="warn">Alasan mode aturan: {t.r.fallbackReason}</li>}
+                      {t.r.fallbackReason && <li className="warn">{t.r.fallbackReason}. Jawaban disusun dari hitungan langsung.</li>}
                     </ol>
                   )}
                 </>

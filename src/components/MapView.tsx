@@ -33,7 +33,7 @@ function railKindsOn(t: { showKrl: boolean; showMrt: boolean; showLrt: boolean }
   return out
 }
 
-/** Dua cerita, dua tampilan — supaya layar tidak menceritakan semuanya sekaligus. */
+/** Dua cerita, dua tampilan, supaya layar tidak menceritakan semuanya sekaligus. */
 export type MapMode = 'denyut' | 'gap'
 
 interface Props {
@@ -48,11 +48,11 @@ interface Props {
   /** Koridor BRT TransJakarta (garis) dan haltenya (titik). */
   showTjRoutes: boolean
   showTjStops: boolean
-  /** Halte JakLingko / Mikrotrans (jumlahnya ribuan — dipisah supaya peta tidak penuh titik). */
+  /** Halte JakLingko / Mikrotrans (jumlahnya ribuan, dipisah supaya peta tidak penuh titik). */
   showJak: boolean
   variant: BasemapVariant
   focus: { lat: number; lon: number; zoom: number; nonce: number } | null
-  /** Kandidat yang disorot — usulan rute pengumpannya digambar di peta. */
+  /** Kandidat yang disorot, usulan rute pengumpannya digambar di peta. */
   activeRecId: string | null
   /** Penanda hasil pencarian lokasi. */
   pin: { lat: number; lon: number; label: string } | null
@@ -71,7 +71,7 @@ const blockLabel = (id: BlockId) => {
 /**
  * Batas zoom peralihan tampilan Denyut:
  * jauh = permukaan heatmap halus (pola kota), dekat = sel heksagon (inspeksi).
- * Ini jawaban untuk masalah "bintik-bintik tanpa makna" — dari jauh yang
+ * Ini jawaban untuk masalah "bintik-bintik tanpa makna", dari jauh yang
  * terlihat adalah BENTUK keramaian, bukan konfeti sel.
  */
 const HEX_MIN_ZOOM = 12.8
@@ -124,6 +124,7 @@ export default function MapView({
                 key: c.key,
                 percentile: hb.percentile,
                 gap: hb.gap ?? '',
+                watch: hb.watch ? 1 : 0,
               },
             }
           }),
@@ -147,7 +148,7 @@ export default function MapView({
     return out
   }, [model])
 
-  /** Halte TJ/JakLingko sebagai titik (dari GTFS) — untuk layer & popup. */
+  /** Halte TJ/JakLingko sebagai titik (dari GTFS), untuk layer & popup. */
   const stopsFC = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
@@ -192,7 +193,7 @@ export default function MapView({
     map.addControl(new NavigationControl({ visualizePitch: false }), 'top-right')
     map.addControl(new ScaleControl({ maxWidth: 100, unit: 'metric' }), 'bottom-left')
 
-    // 'style.load' (bukan 'load'/isStyleLoaded) — dua yang terakhir menunggu
+    // 'style.load' (bukan 'load'/isStyleLoaded), dua yang terakhir menunggu
     // seluruh tile, jadi basemap lambat = layer data tak pernah terpasang.
     map.on('style.load', () => {
       readyRef.current = true
@@ -225,7 +226,7 @@ export default function MapView({
   }, [])
 
   function installLayers(map: MLMap) {
-    /* Jalur rel — relasi rute OpenStreetMap, satu warna per lintas (warna resmi operator). */
+    /* Jalur rel, relasi rute OpenStreetMap, satu warna per lintas (warna resmi operator). */
     if (!map.getSource('rail')) {
       map.addSource('rail', { type: 'geojson', data: railLines as GeoJSON.FeatureCollection })
       map.addLayer({
@@ -270,7 +271,7 @@ export default function MapView({
       })
     }
 
-    /* Koridor BRT TransJakarta 1–14 — shapes.txt GTFS resmi, warna resmi koridor. Ikut toggle halte TransJakarta. */
+    /* Koridor BRT TransJakarta 1–14, shapes.txt GTFS resmi, warna resmi koridor. Ikut toggle halte TransJakarta. */
     if (!map.getSource('tj-routes')) {
       map.addSource('tj-routes', { type: 'geojson', data: tjRoutes as GeoJSON.FeatureCollection })
       map.addLayer({
@@ -385,7 +386,7 @@ export default function MapView({
       map.addSource('hex', { type: 'geojson', data: cur.hex })
       map.addSource('heat-pts', { type: 'geojson', data: cur.heat })
 
-      // Mode DENYUT, zoom jauh: permukaan panas halus — pola kota, bukan konfeti.
+      // Mode DENYUT, zoom jauh: permukaan panas halus, pola kota, bukan konfeti.
       map.addLayer({
         id: 'hex-heat',
         type: 'heatmap',
@@ -445,6 +446,13 @@ export default function MapView({
         paint: { 'fill-color': '#94a3b8', 'fill-opacity': 0.16 },
       })
       map.addLayer({
+        id: 'hex-watch-fill',
+        type: 'fill',
+        source: 'hex',
+        filter: ['==', ['get', 'watch'], 1],
+        paint: { 'fill-color': '#fbbf24', 'fill-opacity': 0.5 },
+      })
+      map.addLayer({
         id: 'hex-gap-fill',
         type: 'fill',
         source: 'hex',
@@ -463,7 +471,7 @@ export default function MapView({
       })
 
       // Klik sel → popup yang menjawab "ini apa, kenapa, lalu saya harus apa".
-      const clickable = ['hex-denyut', 'hex-gap-fill', 'hex-gap-ghost']
+      const clickable = ['hex-denyut', 'hex-gap-fill', 'hex-watch-fill', 'hex-gap-ghost']
       for (const layerId of clickable) {
         map.on('click', layerId, (e) => {
           const f = e.features?.[0]
@@ -475,12 +483,12 @@ export default function MapView({
           const hit = latest.current.recByCell.get(cell.key)
           const clsLabel =
             hb.cls === 'ramai'
-              ? `Ramai — lebih hidup dari ${hb.percentile}% kawasan lain`
+              ? `Ramai: lebih hidup dari ${hb.percentile}% kawasan lain`
               : hb.cls === 'sedang'
-                ? 'Sedang'
+                ? 'Cukup ramai (tingkat sedang)'
                 : hb.cls === 'sepi'
                   ? 'Cenderung sepi'
-                  : 'Tidak ada data'
+                  : 'Belum ada laporan'
           const dot = hb.cls === 'ramai' ? '#dc2626' : hb.cls === 'sedang' ? '#f97316' : hb.cls === 'sepi' ? '#3b82f6' : '#94a3b8'
           const ramaiN = cell.evidence.filter((ev) => ev.crowd === 'ramai').length
           const nearestKind = cell.nearestStop && cell.nearestStopDistM <= cell.nearestNodeDistM ? 'halte' : 'stasiun'
@@ -489,24 +497,27 @@ export default function MapView({
           let why: string
           let next: string
           if (hb.gap === 'jangkauan') {
-            why = `Ramai, tetapi <b>tidak ada stasiun/halte dalam 1 km</b> — yang terdekat ${formatDistance(cell.nearestTransitM)}.`
-            next = 'Kandidat rute pengumpan / halte baru.'
+            why = `Ramai, tetapi <b>tidak ada stasiun atau halte dalam 1 km</b>. Yang terdekat ${formatDistance(cell.nearestTransitM)}.`
+            next = 'Cocok untuk rute pengumpan atau halte baru.'
           } else if (hb.gap === 'jadwal') {
-            why = `Ramai, tetapi <b>jadwalnya tipis</b>: skor layanan ${Math.round(hb.service * 100)}/100 (±${hb.railDep} kereta, ±${hb.busDep} bus pada blok ini).`
-            next = 'Kandidat penambahan frekuensi pada blok ini.'
+            why = `Ramai, tetapi <b>jadwalnya jarang</b>: skor layanan ${Math.round(hb.service * 100)} dari 100 (sekitar ${hb.railDep} kereta dan ${hb.busDep} bus pada jam ini).`
+            next = 'Kandidat penambahan frekuensi pada jam ini.'
+          } else if (hb.watch) {
+            why = `Cukup ramai (tingkat sedang) dan <b>layanannya tipis</b> (skor ${Math.round(hb.service * 100)} dari 100). Belum mendesak, cukup dipantau.`
+            next = ''
           } else if (hb.cls === 'ramai') {
-            why = `Ramai dan <b>layanannya memadai</b> (skor ${Math.round(hb.service * 100)}/100) — tidak ada kesenjangan pada blok ini.`
+            why = `Ramai dan <b>layanannya cukup</b> (skor ${Math.round(hb.service * 100)} dari 100). Tidak ada masalah pada jam ini.`
             next = ''
           } else if (hb.cls) {
-            why = 'Belum tergolong ramai pada blok ini (di bawah 25% teratas), jadi tidak dinilai kesenjangannya.'
+            why = 'Belum tergolong ramai pada jam ini (di luar seperempat teratas), jadi tidak dinilai.'
             next = ''
           } else {
-            why = 'Tidak ada laporan warga pada blok ini. SIMPUL tidak menebak — ini bukan berarti sepi.'
+            why = 'Belum ada laporan warga pada jam ini. SIMPUL tidak menebak; ini bukan berarti sepi.'
             next = ''
           }
-          if (hb.gap && !hit) next = `Termasuk kesenjangan, tetapi belum masuk 12 kandidat teratas (${cell.evidence.length} laporan di sel ini).`
+          if (hb.gap && !hit) next = `Termasuk kawasan bermasalah, tetapi belum masuk daftar kandidat karena buktinya sedikit (${cell.evidence.length} laporan).`
           const action = hit
-            ? `<button type="button" class="pop-btn" data-rec="${escapeHtml(hit.rec.id)}">Buka kandidat #${hit.index + 1} →</button>`
+            ? `<button type="button" class="pop-btn" data-rec="${escapeHtml(hit.rec.id)}">Buka kandidat ${hit.index + 1}${hit.rec.tier === 'pantau' ? ' (perlu dipantau)' : ''}</button>`
             : next
               ? `<p class="pop-next">${next}</p>`
               : ''
@@ -516,11 +527,11 @@ export default function MapView({
             .setLngLat(e.lngLat)
             .setHTML(
               `<div class="pop">
-                 <small class="pop-kicker">Kawasan ±500 m · blok ${escapeHtml(blockLabel(b))}</small>
+                 <small class="pop-kicker">Petak 500 m · blok ${escapeHtml(blockLabel(b))}</small>
                  <h4><i class="pop-dot" style="background:${dot}"></i>${clsLabel}</h4>
                  <div class="pop-grid">
                    <span><b>${cell.evidence.length}</b><small>laporan warga</small></span>
-                   <span><b>${ramaiN}</b><small>menyebut ramai</small></span>
+                   <span><b>${ramaiN}</b><small>menulis "ramai"</small></span>
                    <span><b>${formatDistance(cell.nearestTransitM)}</b><small>ke ${nearestKind} terdekat</small></span>
                  </div>
                  <p>${why}</p>
@@ -564,6 +575,7 @@ export default function MapView({
     set('hex-denyut', denyut)
     set('hex-denyut-line', denyut)
     set('hex-gap-ghost', !denyut)
+    set('hex-watch-fill', !denyut)
     set('hex-gap-fill', !denyut)
     set('hex-gap-line', !denyut)
   }
@@ -589,7 +601,7 @@ export default function MapView({
     markersRef.current.forEach((m) => m.remove())
     const kinds = new Set(railKindsOn({ showKrl, showMrt, showLrt }))
     // Stasiun "bermasalah" = jadwal tipis DAN jadi acuan kandidat frekuensi rendah; tipis saja (kawasan sepi) cuma ditandai halus.
-    const problemIds = new Set(recs.filter((r) => r.kind === 'jadwal').map((r) => r.nearestNode.id))
+    const problemIds = new Set(recs.filter((r) => r.kind === 'jadwal' && r.tier === 'prioritas').map((r) => r.nearestNode.id))
     markersRef.current = model.nodes.filter((n) => kinds.has(n.kind)).map((n) => {
       const dep = n.depByBlock?.[block] ?? 0
       const service = Math.min(1, dep / model.refDep.rail[block])
@@ -600,7 +612,7 @@ export default function MapView({
       el.innerHTML = `<span class="simpul-node-dot"></span><span class="simpul-node-label">${escapeHtml(
         n.name.replace(/^Stasiun (MRT |LRT )?|^Terminal /, ''),
       )}</span>`
-      el.title = `${n.name} — klik untuk jadwal & kawasan sekitarnya`
+      el.title = `${n.name}, klik untuk jadwal & kawasan sekitarnya`
       el.setAttribute('aria-label', el.title)
       el.addEventListener('click', (e) => {
         e.stopPropagation()
@@ -639,7 +651,7 @@ export default function MapView({
     })
   }, [recs, activeRecId, mode])
 
-  /* ── Marker rekomendasi bernomor — nomor di peta = nomor di kartu ─────── */
+  /* ── Marker rekomendasi bernomor, nomor di peta = nomor di kartu ─────── */
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -651,7 +663,7 @@ export default function MapView({
     recMarkersRef.current = recs.map((r, i) => {
       const el = document.createElement('button')
       el.type = 'button'
-      el.className = `simpul-rec-badge simpul-rec-badge-${r.kind}`
+      el.className = `simpul-rec-badge simpul-rec-badge-${r.kind}${r.tier === 'pantau' ? ' simpul-rec-badge-pantau' : ''}`
       el.textContent = `${i + 1}`
       el.title = r.title
       el.addEventListener('click', (ev) => {

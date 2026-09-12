@@ -17,6 +17,6 @@ export interface TransitNode {
    * Gapeka/headway resmi operator.
    */
   depByBlock?: Record<string, number>
-  /** Sumber angka jadwal — ditampilkan di UI supaya bisa diaudit. */
+  /** Sumber angka jadwal, ditampilkan di UI supaya bisa diaudit. */
   scheduleSource?: string
 }

@@ -136,6 +136,11 @@ Layar masuk (dummy, tanpa kata sandi) memilih satu dari empat peran: Perencana K
 Rumusnya (tab Metode & data): tak terjangkau = `3 × sel + bukti`; frekuensi rendah = `2 × sel + bukti + 5 × (1 − skor layanan)`. Ini urutan *bukti terkuat untuk ditinjau dulu*, bukan urutan investasi; angka rumusnya sengaja tidak ditampilkan di kartu supaya panel tetap ringkas. Panel juga bisa diurutkan menurut bukti terbanyak atau keyakinan tertinggi; nomor kandidat tetap mengikuti skor supaya sama dengan nomor di peta.
 
 
+### Dua tingkat kandidat
+
+- **Prioritas**: petak RAMAI (25% teratas) yang skor layanannya < 35/100. Paling banyak 12.
+- **Perlu dipantau**: petak tingkat SEDANG (persentil 50 sampai 75) yang skor layanannya < 35/100 dan tidak bertetangga dengan petak prioritas. Paling banyak 10, nomornya melanjutkan nomor prioritas. Di peta digambar kuning dengan marker bergaris. Belum mendesak; gunanya menunjukkan kawasan yang akan naik jadi prioritas kalau laporannya bertambah.
+
 ### Usulan tindakan & angka indikatif
 
 Tiap kandidat membawa `proposal` (`src/lib/recommend.ts`): satu kalimat usulan, langkah konkret, dan angka indikatif yang cara hitungnya ditulis di tombol "i":

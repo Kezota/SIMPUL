@@ -111,7 +111,7 @@ export default function LocationSearch({
         const out = await geocode(key, ac.signal)
         if (!ac.signal.aborted) setRemote({ q: key, hits: out, busy: false })
       } catch {
-        /* dibatalkan / offline — hasil lokal tetap tampil */
+        /* dibatalkan / offline, hasil lokal tetap tampil */
         if (!ac.signal.aborted) setRemote({ q: key, hits: [], busy: false })
       }
     }, 450)

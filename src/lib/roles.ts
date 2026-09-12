@@ -1,10 +1,10 @@
 /**
- * Peran pengguna SIMPUL — login dummy berbasis peran (tanpa kata sandi).
+ * Peran pengguna SIMPUL, login dummy berbasis peran (tanpa kata sandi).
  *
  * Tiga persona diambil langsung dari PRD §4 (perencana operator kereta,
  * analis jaringan bus, regulator daerah) ditambah "tamu" untuk juri/publik
  * (PRD §13: URL publik bisa dibuka tanpa login). Peran hanya mengubah SUDUT
- * PANDANG tampilan — data dan hitungannya sama untuk semua orang.
+ * PANDANG tampilan, data dan hitungannya sama untuk semua orang.
  */
 
 import type { Recommendation } from './recommend'
@@ -17,7 +17,7 @@ export interface Role {
   label: string
   /** Instansi. */
   org: string
-  /** Nama persona dummy (dari PRD) — supaya login terasa nyata saat demo. */
+  /** Nama persona dummy (dari PRD), supaya login terasa nyata saat demo. */
   persona: string
   icon: string
   /** Satu kalimat: apa yang dilihat peran ini. */
@@ -27,7 +27,7 @@ export interface Role {
   defaultRail: boolean
   /** Halte TransJakarta (BRT/non-BRT). */
   defaultTj: boolean
-  /** Halte JakLingko / Mikrotrans — ribuan titik, dimatikan kecuali perlu. */
+  /** Halte JakLingko / Mikrotrans, ribuan titik, dimatikan kecuali perlu. */
   defaultJak: boolean
   /** Kandidat yang menjadi wewenang peran ini ditampilkan lebih dulu. */
   owns: (r: Recommendation) => boolean
@@ -140,6 +140,6 @@ export function saveRole(id: RoleId | null) {
     if (id) localStorage.setItem(STORAGE_KEY, id)
     else localStorage.removeItem(STORAGE_KEY)
   } catch {
-    /* penyimpanan diblokir — peran hanya bertahan selama tab terbuka */
+    /* penyimpanan diblokir, peran hanya bertahan selama tab terbuka */
   }
 }

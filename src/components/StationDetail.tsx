@@ -20,7 +20,7 @@ const KIND_LABEL: Record<NodeKind, string> = {
 /**
  * Detail satu stasiun (modal): jadwal per blok, tingkat layanan, kawasan
  * sekitarnya (2 km), dan kandidat yang menunjuk ke stasiun ini. Semua angka
- * dari model hitungan — sama dengan yang dipakai alat AI profil_kawasan.
+ * dari model hitungan, sama dengan yang dipakai alat AI profil_kawasan.
  */
 export default function StationDetail({
   node,
@@ -76,14 +76,16 @@ export default function StationDetail({
   const thin = now.service <= 0.35
   const busy = now.ramai > 0
   const linkedJadwal = linked.filter(({ r }) => r.kind === 'jadwal')
-  const hit = linkedJadwal.find(({ r }) => r.block === block) ?? linkedJadwal[0]
+  const hitPrio = linkedJadwal.filter(({ r }) => r.tier === 'prioritas')
+  const hit = hitPrio.find(({ r }) => r.block === block) ?? hitPrio[0] ?? null
+  const watchHit = linkedJadwal.find(({ r }) => r.tier === 'pantau') ?? null
   const status = thin
     ? hit
-      ? { tone: 'bad', title: `Jadwal tipis pada blok ${now.label} dan kawasan sekitarnya ramai — ini masalah.`, body: hit.r.proposal.summary, rec: hit }
-      : busy
-        ? { tone: 'warn', title: `Jadwal tipis pada blok ${now.label} dan ada ${now.ramai} sel ramai di sekitarnya.`, body: 'Belum masuk 12 kandidat teratas karena buktinya masih sedikit. Layak dicek lapangan.', rec: null }
-        : { tone: 'ok', title: `Jadwal tipis pada blok ${now.label}, tetapi kawasan sekitarnya tidak ramai.`, body: 'Wajar untuk jam ini — tidak perlu tindakan, cukup dipantau.', rec: null }
-    : { tone: 'ok', title: `Layanan ${svcWord(now.service)} pada blok ${now.label}.`, body: hit ? `Perhatikan blok ${TIME_BLOCKS.find((b) => b.id === hit.r.block)?.label}: kawasan sekitar ramai saat jadwal tipis (kandidat #${hit.i + 1}).` : 'Tidak ada kesenjangan yang tercatat di stasiun ini.', rec: hit }
+      ? { tone: 'bad', title: `Jadwal jarang pada blok ${now.label} dan kawasan sekitarnya ramai. Ini perlu ditindaklanjuti.`, body: `${hit.r.proposal.headline}: ${hit.r.proposal.points.map((p) => `${p.label.toLowerCase()} ${p.value}`).join('; ')}.`, rec: hit }
+      : watchHit || busy
+        ? { tone: 'warn', title: `Jadwal jarang pada blok ${now.label}, dan kawasan sekitarnya cukup ramai.`, body: 'Belum jadi prioritas karena buktinya masih sedikit. Layak dicek di lapangan.', rec: watchHit }
+        : { tone: 'ok', title: `Jadwal jarang pada blok ${now.label}, tetapi kawasan sekitarnya tidak ramai.`, body: 'Wajar untuk jam ini. Tidak perlu tindakan, cukup dipantau.', rec: null }
+    : { tone: 'ok', title: `Layanan ${svcWord(now.service)} pada blok ${now.label}.`, body: hit ? `Perhatikan blok ${TIME_BLOCKS.find((b) => b.id === hit.r.block)?.label}: kawasan sekitar ramai saat jadwal jarang (kandidat ${hit.i + 1}).` : 'Tidak ada kesenjangan yang tercatat di stasiun ini.', rec: hit }
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -108,7 +110,7 @@ export default function StationDetail({
           <p>{status.body}</p>
           {status.rec && (
             <button type="button" className="btn small" onClick={() => onOpenRec(status.rec!.r, status.rec!.i)}>
-              Buka kandidat #{status.rec.i + 1} →
+              Buka kandidat {status.rec.i + 1}
             </button>
           )}
         </div>
@@ -117,7 +119,7 @@ export default function StationDetail({
           <span>
             <b>±{now.dep}</b>
             <small>
-              kereta pada blok {now.label}
+              kereta, blok {now.label}
               <InfoTip k="kereta_blok" corner />
             </small>
           </span>
@@ -131,21 +133,21 @@ export default function StationDetail({
           <span>
             <b>{now.ramai}</b>
             <small>
-              sel ramai dalam 2 km
+              petak ramai dalam 2 km
               <InfoTip k="sel_ramai" corner />
             </small>
           </span>
           <span>
             <b>{reports}</b>
             <small>
-              laporan aktivitas dari warga (2 km)
+              laporan warga dalam 2 km
               <InfoTip k="laporan_warga" corner />
             </small>
           </span>
         </div>
 
-        <section>
-          <h3>Kereta per blok waktu</h3>
+        <details className="acc acc-card">
+          <summary>Kereta per blok waktu</summary>
           <div className="rd-chart sd-chart">
             {per.map((b) => (
               <div key={b.id} className={`${b.id === block ? 'on' : ''}${b.service <= 0.35 ? ' low' : ''}`} title={`${b.label} ${b.range}: ±${b.dep} kereta · skor layanan ${Math.round(b.service * 100)}/100`}>
@@ -158,16 +160,16 @@ export default function StationDetail({
           </div>
           <p className="rd-note">
             {thinnest.service <= 0.35
-              ? `Paling tipis pada blok ${thinnest.label} — skor layanan ${Math.round(thinnest.service * 100)}/100.`
-              : 'Tidak ada blok dengan jadwal tipis di stasiun ini.'}{' '}
-            Skor layanan = keberangkatan dibanding acuan stasiun tersibuk pada blok yang sama.
+              ? `Paling jarang pada blok ${thinnest.label}, skor layanan ${Math.round(thinnest.service * 100)} dari 100.`
+              : 'Tidak ada blok dengan jadwal jarang di stasiun ini.'}{' '}
+            Skor layanan membandingkan seberapa sering kereta berangkat di sini dengan stasiun tersibuk pada jam yang sama.
           </p>
-        </section>
+        </details>
 
-        <section>
-          <h3>Kawasan sekitar (2 km) — kapan hidupnya</h3>
+        <details className="acc acc-card">
+          <summary>Kawasan sekitar (2 km): kapan ramainya</summary>
           {near.length === 0 ? (
-            <p className="rd-note">Belum ada laporan warga dalam 2 km dari stasiun ini. Bukan berarti sepi — belum ada data.</p>
+            <p className="rd-note">Belum ada laporan warga dalam 2 km dari stasiun ini. Bukan berarti sepi, belum ada data.</p>
           ) : (
             <>
               <div className="rd-chart sd-chart">
@@ -182,40 +184,41 @@ export default function StationDetail({
               </div>
               <p className="rd-note">
                 Paling hidup pada blok {busiest.label}; saat itu ±{busiest.dep} kereta, layanan {svcWord(busiest.service)}.
-                {busiest.gap > 0 ? ` ${busiest.gap} sel di sekitarnya tergolong kesenjangan.` : ''}
+                {busiest.gap > 0 ? ` ${busiest.gap} petak di sekitarnya layanannya kurang.` : ''}
               </p>
             </>
           )}
-        </section>
+        </details>
 
-        <section>
-          <h3>Kandidat yang menunjuk ke stasiun ini</h3>
+        <details className="acc acc-card" open={linked.length > 0}>
+          <summary>Kandidat yang menunjuk ke stasiun ini{linked.length ? ` (${linked.length})` : ''}</summary>
           {linked.length === 0 ? (
-            <p className="rd-note">Tidak ada. Kawasan ramai di sekitar stasiun ini layanannya dinilai memadai.</p>
+            <p className="rd-note">Tidak ada. Kawasan ramai di sekitar stasiun ini layanannya dinilai cukup.</p>
           ) : (
             <ul className="rd-list">
               {linked.map(({ r, i, distM }) => (
                 <li key={r.id} className="sd-rec">
                   <div>
                     <b>
-                      #{i + 1} {r.place}
+                      {i + 1}. {r.place}
+                      {r.tier === 'pantau' ? ' (perlu dipantau)' : ''}
                     </b>
                     <small>
                       {r.headline} · {formatDistance(distM)} dari stasiun
                     </small>
                   </div>
                   <button type="button" className="btn small" onClick={() => onOpenRec(r, i)}>
-                    Buka →
+                    Buka
                   </button>
                 </li>
               ))}
             </ul>
           )}
-        </section>
+        </details>
 
         <div className="rd-foot">
           <button type="button" className="btn primary" onClick={onFocus}>
-            Lihat di peta →
+            Lihat di peta
           </button>
           <button type="button" className="btn ghost" onClick={onClose}>
             Tutup

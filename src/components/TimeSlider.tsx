@@ -1,36 +1,52 @@
+import type { BlockSummary } from '../lib/engine'
 import { TIME_BLOCKS, type BlockId } from '../lib/timeblocks'
+import type { MapMode } from './MapView'
 
-/** Penggeser blok waktu — kontrol utama SIMPUL. Diubah manual (tanpa putar otomatis). */
-export default function TimeSlider({ block, onChange }: { block: BlockId; onChange: (b: BlockId) => void }) {
-  const idx = TIME_BLOCKS.findIndex((b) => b.id === block)
-  const cur = TIME_BLOCKS[idx]
-
+/**
+ * Pemilih blok waktu: lima tombol besar, tiap tombol membawa batang kecil
+ * (seberapa banyak laporan warga) dan angka yang sesuai tampilan peta.
+ */
+export default function TimeSlider({
+  block,
+  mode,
+  summaries,
+  onChange,
+}: {
+  block: BlockId
+  mode: MapMode
+  summaries: BlockSummary[]
+  onChange: (b: BlockId) => void
+}) {
+  const peak = Math.max(1, ...summaries.map((s) => s.totalPoints))
   return (
-    <div className="time-slider" role="group" aria-label="Pilih blok waktu">
-      <div className="ts-now">
-        <small>Blok waktu</small>
-        <b>
-          {cur.label} <span>{cur.range}</span>
-        </b>
+    <div className="tb" role="group" aria-label="Pilih blok waktu">
+      <div className="tb-head">
+        <b>Blok waktu</b>
+        <small>{mode === 'gap' ? 'Angka = petak ramai yang layanannya kurang' : 'Angka = petak yang ada laporan warganya'}</small>
       </div>
-      <div className="ts-track">
-        <input
-          type="range"
-          min={0}
-          max={TIME_BLOCKS.length - 1}
-          step={1}
-          value={idx}
-          aria-label="Blok waktu"
-          onChange={(e) => onChange(TIME_BLOCKS[Number(e.target.value)].id)}
-        />
-        <div className="ts-labels">
-          {TIME_BLOCKS.map((b) => (
-            <button key={b.id} type="button" className={b.id === block ? 'on' : undefined} onClick={() => onChange(b.id)}>
-              <b>{b.label}</b>
-              <small>{b.range}</small>
+      <div className="tb-row">
+        {TIME_BLOCKS.map((b) => {
+          const s = summaries.find((x) => x.block === b.id)
+          const n = s ? (mode === 'gap' ? s.gapJadwal + s.gapJangkauan : s.activeCells) : 0
+          const h = s ? Math.max(6, (s.totalPoints / peak) * 100) : 6
+          return (
+            <button
+              key={b.id}
+              type="button"
+              className={`tb-btn${b.id === block ? ' on' : ''}`}
+              aria-pressed={b.id === block}
+              onClick={() => onChange(b.id)}
+              title={`${b.label} ${b.range}${s ? `: ${s.activeCells} petak berdata, ${s.ramai} ramai, ${s.gapJadwal + s.gapJangkauan} layanan kurang` : ''}`}
+            >
+              <span className="tb-bar" aria-hidden="true">
+                <i style={{ height: `${h}%` }} />
+              </span>
+              <span className="tb-lbl">{b.label}</span>
+              <span className="tb-hr">{b.range.replace('–', '.00 - ')}.00</span>
+              <span className={`tb-n${mode === 'gap' && n > 0 ? ' warn' : ''}`}>{n}</span>
             </button>
-          ))}
-        </div>
+          )
+        })}
       </div>
     </div>
   )

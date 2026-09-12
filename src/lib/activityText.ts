@@ -1,5 +1,5 @@
 /**
- * Pembacaan teks laporan warga Community Maps — ATURAN TERBUKA, BUKAN LLM.
+ * Pembacaan teks laporan warga Community Maps, ATURAN TERBUKA, BUKAN LLM.
  *
  * PRD melarang LLM menghitung angka. Maka dua hal yang kami tarik dari teks
  * laporan dibaca dengan aturan kata kunci yang bisa diaudit siapa pun:

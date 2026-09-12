@@ -1,28 +1,34 @@
 /**
  * Penyusun kandidat SIMPUL (PRD: "daftar kandidat berperingkat").
  *
- * Aturannya deterministik dan bisa diaudit — LLM nantinya hanya memperhalus
- * kalimat alasan, TIDAK menentukan isi. Semua angka ditarik dari model.
+ * Aturannya deterministik dan bisa diaudit. LLM hanya memperhalus kalimat,
+ * TIDAK menentukan isi. Semua angka ditarik dari model.
  *
- * Kedua jenis kesenjangan dibentuk dengan cara yang sama: sel ber-gap yang
- * bersebelahan digabung jadi satu kantong (flood-fill di grid heksagon), lalu
- * diperingkat. Ini menggantikan pendekatan lama "per simpul" yang tidak masuk
- * akal untuk Jabodetabek (ribuan halte).
+ * Dua tingkat:
+ *   prioritas = petak RAMAI (25% teratas) yang layanannya kurang;
+ *   pantau    = petak tingkat SEDANG yang layanannya tipis (belum mendesak).
+ * Petak yang bersebelahan digabung jadi satu kantong (flood-fill heksagon),
+ * lalu diperingkat.
  */
 
 import type { TransitNode } from './types'
 import { hexKey, hexNeighbors } from './hexgrid'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
-import type { HexCell, SimpulModel } from './engine'
+import { WALK_M, type HexCell, type SimpulModel } from './engine'
 
 export type Confidence = 'tinggi' | 'sedang' | 'rendah'
+export type Tier = 'prioritas' | 'pantau'
+export type GapKind = 'jadwal' | 'jangkauan'
 
 export interface Proposal {
-  /** Satu kalimat: apa yang sebaiknya dilakukan. */
+  /** Satu kalimat: apa yang sebaiknya dilakukan (dipakai asisten). */
   summary: string
-  /** Langkah konkret berurutan (2–4). */
+  /** Versi terbaca: judul tindakan pendek + poin angka. */
+  headline: string
+  points: { label: string; value: string }[]
+  /** Langkah konkret berurutan. */
   steps: string[]
-  /** Angka indikatif, tiap item membawa cara hitungnya. */
+  /** Angka indikatif; tiap item membawa cara hitungnya dalam bahasa biasa. */
   estimate: { label: string; value: string; how: string }[]
   /** Usulan rute pengumpan (khusus tak terjangkau) untuk digambar di peta. */
   route?: { from: { lat: number; lon: number; name: string }; to: { lat: number; lon: number }; lengthM: number }
@@ -31,51 +37,47 @@ export interface Proposal {
 
 export interface Recommendation {
   id: string
-  kind: 'jadwal' | 'jangkauan'
+  kind: GapKind
+  tier: Tier
+  /** Instansi yang wajar menindaklanjuti. */
   target: string
+  /** Nama pendek instansi untuk pengelompokan. */
+  targetShort: 'KAI Commuter' | 'TransJakarta'
   title: string
-  /** Nama tempat pendek untuk judul kartu (mis. "Lebak Bulus BSI"). */
+  /** Nama tempat pendek untuk judul kartu. */
   place: string
-  /** Satu baris inti kartu (mis. "1,5 km dari layanan terdekat"). */
+  /** Satu baris inti kartu. */
   headline: string
   body: string
-  /** 3 poin singkat "apa yang terjadi" untuk modal detail (pengganti paragraf). */
+  /** 3 poin singkat "apa yang terjadi". */
   highlights: string[]
-  /** Satu baris usulan konkret (jenis kandidat). */
   action: string
-  /** Usulan tindakan terperinci + perkiraan indikatif (armada/perjalanan). */
   proposal: Proposal
   facts: { label: string; value: string }[]
   focus: { lat: number; lon: number; zoom: number }
   block: BlockId | null
   score: number
-  /** PRD: tinggi = banyak observasi, sedang = jarang, rendah = sangat tipis. */
   confidence: Confidence
-  /**
-   * Dasar peringkat, ditulis terbuka supaya pengguna tahu "prioritas ini
-   * berdasarkan apa": rumus + angkanya untuk kantong ini.
-   */
   rankBasis: string
+  /** Dasar peringkat dipecah jadi poin pendek. */
+  rankParts: string[]
   evidenceCount: number
   cellKeys: string[]
   nearestNode: TransitNode
 }
 
-/** Lama blok (jam) untuk mengubah "keberangkatan per blok" ↔ headway. */
+/** Lama blok (jam) untuk mengubah "keberangkatan per blok" menjadi jeda antar keberangkatan. */
 const BLOCK_HOURS: Record<BlockId, number> = { pagi: 4, siang: 4, sore: 4, malam: 4, larut: 8 }
 
-/** Target layanan wajar untuk kawasan ramai: skor 60/100 dari acuan simpul tersibuk. */
+/** Target layanan wajar untuk kawasan ramai: 60% dari simpul tersibuk. */
 const TARGET_SERVICE = 0.6
 
-const fmtMin = (m: number) => (m >= 1 ? `${Math.round(m)} menit` : '< 1 menit')
+const fmtMin = (m: number) => (Number.isFinite(m) ? (m >= 1 ? `${Math.round(m)} menit` : 'kurang dari 1 menit') : 'tidak ada')
+const km = (m: number) => (m / 1000).toFixed(1).replace('.', ',')
 
-const blockLabel = (id: BlockId) => {
-  const b = TIME_BLOCKS.find((x) => x.id === id)!
-  return b.label
-}
+const blockLabel = (id: BlockId) => TIME_BLOCKS.find((x) => x.id === id)!.label
 
-const shortName = (n: TransitNode) =>
-  n.name.replace(/^Stasiun (MRT |LRT )?/, '').replace(/^Terminal /, 'Term. ')
+const shortName = (n: TransitNode) => n.name.replace(/^Stasiun (MRT |LRT )?/, '').replace(/^Terminal /, 'Term. ')
 
 function clusters(cells: HexCell[]): HexCell[][] {
   const byKey = new Map(cells.map((c) => [c.key, c]))
@@ -102,24 +104,31 @@ function clusters(cells: HexCell[]): HexCell[][] {
   return out
 }
 
-/** PRD §7: tinggi bila banyak observasi & tervalidasi; sedang bila jarang. */
+/** PRD §7: tinggi bila banyak observasi dan tervalidasi; sedang bila jarang. */
 function confidenceOf(evidence: number, cells: number): Confidence {
   if (evidence >= 8 && cells >= 2) return 'tinggi'
   if (evidence >= 3) return 'sedang'
   return 'rendah'
 }
 
-function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendation[] {
-  const gapCells = model.cells.filter((c) => TIME_BLOCKS.some((b) => c.blocks[b.id].gap === kind))
+function buildFor(model: SimpulModel, kind: GapKind, tier: Tier): Recommendation[] {
+  const flagged = (c: HexCell, b: BlockId) =>
+    tier === 'prioritas' ? c.blocks[b].gap === kind : c.blocks[b].watch && (c.nearestTransitM > WALK_M ? 'jangkauan' : 'jadwal') === kind
+  const pool =
+    tier === 'prioritas'
+      ? model.cells
+      : model.cells.filter((c) => !TIME_BLOCKS.some((b) => c.blocks[b.id].gap)) // sudah prioritas, jangan dihitung dua kali
+  const gapCells = pool.filter((c) => TIME_BLOCKS.some((b) => flagged(c, b.id)))
+
   return clusters(gapCells).map((cl) => {
     const lat = cl.reduce((s, c) => s + c.center.lat, 0) / cl.length
     const lon = cl.reduce((s, c) => s + c.center.lon, 0) / cl.length
 
-    // blok dominan = blok dengan poin kegiatan terbesar di antara blok ber-gap
+    // Blok dominan = blok dengan poin kegiatan terbesar di antara blok yang bermasalah.
     let domBlock: BlockId = 'pagi'
     let domPts = -1
     for (const b of TIME_BLOCKS) {
-      const pts = cl.reduce((s, c) => s + (c.blocks[b.id].gap === kind ? c.blocks[b.id].total : 0), 0)
+      const pts = cl.reduce((s, c) => s + (flagged(c, b.id) ? c.blocks[b.id].total : 0), 0)
       if (pts > domPts) {
         domPts = pts
         domBlock = b.id
@@ -134,10 +143,14 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
     const busDep = Math.round(cl.reduce((s, c) => s + c.blocks[domBlock].busDep, 0) / cl.length)
     const confidence = confidenceOf(evidence, cl.length)
     const stopName = cl[0].nearestStop?.name
+    const blok = blockLabel(domBlock)
+    const petak = `${cl.length} petak`
+    const levelWord = tier === 'prioritas' ? 'ramai' : 'cukup ramai (tingkat sedang)'
 
     const base = {
-      id: `${kind}-${cl[0].key}`,
+      id: `${tier}-${kind}-${cl[0].key}`,
       kind,
+      tier,
       focus: { lat, lon, zoom: 13.5 },
       block: domBlock,
       confidence,
@@ -147,54 +160,78 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
     }
 
     if (kind === 'jangkauan') {
-      // Usulan rute pengumpan: dari layanan terdekat (halte kalau lebih dekat, kalau tidak stasiun) ke pusat kantong.
+      // Usulan rute pengumpan dari layanan terdekat (halte kalau lebih dekat, kalau tidak stasiun) ke pusat kantong.
       const stop = cl[0].nearestStop
       const useStop = !!stop && cl[0].nearestStopDistM < cl[0].nearestNodeDistM
       const from = useStop ? { lat: stop!.lat, lon: stop!.lon, name: `Halte ${stop!.name}` } : { lat: nearest.lat, lon: nearest.lon, name: nearest.name }
       const lengthM = Math.max(avgTransitM, 500)
       const hours = BLOCK_HOURS[domBlock]
       const headway = 15
-      const cycleMin = (2 * lengthM) / 1000 / 15 * 60 + 10 // 15 km/jam di jalan lokal + 10 menit layover
+      const cycleMin = ((2 * lengthM) / 1000 / 15) * 60 + 10 // 15 km/jam di jalan lokal + 10 menit istirahat
       const fleet = Math.max(1, Math.ceil(cycleMin / headway))
       const tripsPerBlock = Math.round((hours * 60) / headway) * 2
       const proposal: Proposal = {
-        summary: `Buka rute pengumpan (mikrobus/JakLingko) sepanjang ±${(lengthM / 1000).toFixed(1).replace('.', ',')} km dari ${from.name} ke kawasan ini, dengan halte pemberhentian di dalam kantong.`,
+        summary: `Buka rute pengumpan (mikrobus atau JakLingko) sekitar ${km(lengthM)} km dari ${from.name} ke kawasan ini, dengan pemberhentian di dalam kawasan.`,
+        headline: 'Buka rute pengumpan baru',
+        points: [
+          { label: 'Dari', value: from.name },
+          { label: 'Panjang', value: `sekitar ${km(lengthM)} km, berhenti di dalam kawasan` },
+          { label: 'Uji coba', value: `${fleet} unit, tiap ${headway} menit, blok ${blok}` },
+        ],
         steps: [
-          `Verifikasi lapangan pada blok ${blockLabel(domBlock)}: hitung penumpang potensial di ${cl.length} sel ini (${evidence} laporan warga sudah ada).`,
-          `Tetapkan titik henti di dalam kantong (jarak jalan kaki ≤ 500 m) dan rute ke ${from.name}.`,
-          `Uji coba ${fleet} unit dengan headway ${headway} menit pada blok ${blockLabel(domBlock)}; evaluasi okupansi setelah 4–6 minggu.`,
+          tier === 'prioritas'
+            ? `Cek lapangan pada blok ${blok}: hitung calon penumpang di ${petak} ini. Sudah ada ${evidence} laporan warga sebagai dasar.`
+            : `Tambah survei lapangan pada blok ${blok}. Baru ${evidence} laporan dan keramaiannya tingkat sedang, jadi pastikan dulu kebutuhannya.`,
+          `Tentukan titik henti di dalam kawasan (jarak jalan kaki paling jauh 500 m) dan jalur ke ${from.name}.`,
+          `Uji coba ${fleet} unit dengan bus lewat tiap ${headway} menit pada blok ${blok}. Nilai keterisian setelah 4 sampai 6 minggu.`,
         ],
         estimate: [
-          { label: 'Armada uji coba', value: `${fleet} unit`, how: `Siklus PP ≈ ${Math.round(cycleMin)} menit (2 × ${(lengthM / 1000).toFixed(1)} km @ 15 km/jam + 10 menit layover) ÷ headway ${headway} menit, dibulatkan ke atas.` },
-          { label: 'Perjalanan/blok', value: `±${tripsPerBlock}`, how: `${hours} jam × 60 ÷ ${headway} menit × 2 arah.` },
-          { label: 'Panjang rute', value: `±${(lengthM / 1000).toFixed(1)} km`, how: 'Jarak lurus rata-rata sel ke layanan terdekat; jalur jalan sebenarnya bisa lebih panjang.' },
+          {
+            label: 'Armada uji coba',
+            value: `${fleet} unit`,
+            how: `Satu perjalanan pulang pergi kira-kira ${Math.round(cycleMin)} menit: jarak ${km(lengthM)} km pergi dan pulang dengan kecepatan 15 km/jam, ditambah 10 menit istirahat. Supaya ada bus tiap ${headway} menit, butuh ${fleet} unit.`,
+          },
+          {
+            label: 'Perjalanan per blok',
+            value: `sekitar ${tripsPerBlock}`,
+            how: `Kalau bus lewat tiap ${headway} menit selama ${hours} jam untuk dua arah, jadinya sekitar ${tripsPerBlock} perjalanan.`,
+          },
+          {
+            label: 'Panjang rute',
+            value: `sekitar ${km(lengthM)} km`,
+            how: 'Jarak garis lurus dari kawasan ke layanan terdekat. Jalan sebenarnya biasanya lebih panjang.',
+          },
         ],
         route: { from, to: { lat, lon }, lengthM },
-        caveat: 'Angka indikatif untuk memulai kajian, bukan rencana operasi. Kapasitas, tarif, dan trayek final ditentukan operator dan Dishub.',
+        caveat: 'Angka kasar untuk memulai kajian, bukan rencana operasi. Kapasitas, tarif, dan trayek final ditentukan operator dan Dishub.',
       }
+      const score = cl.length * 3 + evidence
       return {
         ...base,
         proposal,
         highlights: [
-          `${cl.length} sel bersebelahan tergolong ramai, paling hidup pada blok ${blockLabel(domBlock)}`,
-          `Tidak ada stasiun/halte dalam 1 km — yang terdekat ${(avgTransitM / 1000).toFixed(1).replace('.', ',')} km (${shortName(nearest)})`,
-          `${evidence} laporan warga menjadi bukti`,
+          `${petak} bersebelahan tergolong ${levelWord}, paling hidup pada blok ${blok}.`,
+          `Tidak ada stasiun atau halte dalam 1 km. Yang terdekat ${km(avgTransitM)} km, ke arah ${shortName(nearest)}.`,
+          `${evidence} laporan warga menjadi bukti.`,
         ],
         target: 'TransJakarta / JakLingko (rute pengumpan) · Dishub',
-        title: `Kawasan ramai ${(avgTransitM / 1000).toFixed(1)} km dari layanan terdekat (arah ${shortName(nearest)})`,
+        targetShort: 'TransJakarta' as const,
+        title: `Kawasan ${levelWord} ${km(avgTransitM)} km dari layanan terdekat (arah ${shortName(nearest)})`,
         place: `Arah ${shortName(nearest)}`,
-        headline: `${(avgTransitM / 1000).toFixed(1).replace('.', ',')} km dari stasiun/halte terdekat`,
-        body: `${cl.length} sel bersebelahan tergolong ramai (paling hidup blok ${blockLabel(domBlock)}), tetapi tidak ada stasiun maupun halte dalam jarak jalan kaki 1 km. Bukti: ${evidence} laporan lapangan.`,
-        action: `Jenis kandidat: rute pengumpan / halte baru menuju ${nearest.name}.`,
+        headline: `${km(avgTransitM)} km dari stasiun atau halte terdekat`,
+        body: `${petak} bersebelahan tergolong ${levelWord} (paling hidup blok ${blok}), tetapi tidak ada stasiun maupun halte dalam jarak jalan kaki 1 km. Bukti: ${evidence} laporan warga.`,
+        action: `Jenis kandidat: rute pengumpan atau halte baru menuju ${nearest.name}.`,
         facts: [
-          { label: 'Sel ramai', value: `${cl.length}` },
+          { label: 'Petak', value: `${cl.length}` },
           { label: 'Bukti', value: `${evidence}` },
-          { label: 'Ke layanan', value: `${(avgTransitM / 1000).toFixed(1)} km` },
+          { label: 'Ke layanan', value: `${km(avgTransitM)} km` },
         ],
-        score: cl.length * 3 + evidence,
-        rankBasis: `3 × ${cl.length} sel + ${evidence} bukti = ${cl.length * 3 + evidence}`,
+        score,
+        rankBasis: `${cl.length} petak dan ${evidence} laporan; kawasan tak terjangkau diberi bobot lebih besar. Skor ${score}.`,
+        rankParts: [`${cl.length} petak bersebelahan`, `${evidence} laporan warga`, 'Tak terjangkau diberi bobot lebih besar', `Skor ${score}`],
       }
     }
+
     const railTarget = railDep >= busDep
     const hours = BLOCK_HOURS[domBlock]
     const ref = railTarget ? model.refDep.rail[domBlock] : model.refDep.bus[domBlock]
@@ -203,58 +240,83 @@ function buildFor(model: SimpulModel, kind: 'jadwal' | 'jangkauan'): Recommendat
     const extra = Math.max(0, targetDep - nowDep)
     const headwayNow = nowDep > 0 ? (hours * 60) / (nowDep / 2) : Infinity
     const headwayTarget = (hours * 60) / (targetDep / 2)
-    const cycleMin = railTarget ? 120 : 90 // asumsi siklus PP rangkaian KRL / bus koridor
+    const cycleMin = railTarget ? 120 : 90 // asumsi siklus pulang pergi rangkaian KRL / bus koridor
     const fleet = Math.max(1, Math.ceil(((extra / 2) * cycleMin) / (hours * 60)))
     const moda = railTarget ? 'kereta' : 'bus'
+    const unit = railTarget ? 'rangkaian' : 'armada'
+    const where = `${shortName(nearest)}${stopName && !railTarget ? ` / halte ${stopName}` : ''}`
     const proposal: Proposal = {
-      summary: `Rapatkan jadwal ${moda} di ${shortName(nearest)}${stopName && !railTarget ? ` / halte ${stopName}` : ''} pada blok ${blockLabel(domBlock)}: dari ±${nowDep} menjadi ±${targetDep} keberangkatan (headway ${fmtMin(headwayNow)} → ${fmtMin(headwayTarget)}).`,
+      summary: `Rapatkan jadwal ${moda} di ${where} pada blok ${blok}: dari sekitar ${nowDep} menjadi ${targetDep} keberangkatan, sehingga jedanya turun dari ${fmtMin(headwayNow)} ke ${fmtMin(headwayTarget)}.`,
+      headline: `Rapatkan jadwal ${moda} di ${where}`,
+      points: [
+        { label: 'Kapan', value: `blok ${blok}` },
+        { label: 'Keberangkatan', value: `sekitar ${nowDep} menjadi ${targetDep} per blok` },
+        { label: 'Jeda', value: `${fmtMin(headwayNow)} menjadi ${fmtMin(headwayTarget)}` },
+      ],
       steps: [
-        `Cek okupansi ${moda} di ${shortName(nearest)} pada blok ${blockLabel(domBlock)} — kawasan sekitarnya ramai (${evidence} laporan) tetapi skor layanan ${Math.round(service * 100)}/100.`,
-        `Tambah ±${extra} keberangkatan per blok (dua arah) supaya skor layanan naik ke ≥ ${Math.round(TARGET_SERVICE * 100)}/100.`,
-        railTarget ? `Bila jalur padat, alternatifnya perpanjang perjalanan yang sudah ada atau tambah pengumpan bus ke stasiun lain.` : `Bila armada terbatas, prioritaskan jam puncak dalam blok itu dulu.`,
+        tier === 'prioritas'
+          ? `Cek keterisian ${moda} di ${where} pada blok ${blok}. Kawasan sekitarnya ramai (${evidence} laporan) tetapi skor layanan baru ${Math.round(service * 100)} dari 100.`
+          : `Tambah survei di sekitar ${where} pada blok ${blok}. Keramaiannya tingkat sedang (${evidence} laporan), jadi pastikan dulu kebutuhannya.`,
+        `Tambah sekitar ${extra} keberangkatan per blok (dua arah) supaya skor layanan naik ke ${Math.round(TARGET_SERVICE * 100)} dari 100.`,
+        railTarget
+          ? 'Kalau jalurnya sudah padat, alternatifnya perpanjang perjalanan yang ada atau tambah bus pengumpan ke stasiun lain.'
+          : 'Kalau armada terbatas, dahulukan jam paling sibuk di dalam blok itu.',
       ],
       estimate: [
-        { label: 'Tambahan keberangkatan', value: `+${extra}/blok`, how: `Target ${Math.round(TARGET_SERVICE * 100)}/100 × acuan ${ref} keberangkatan (simpul tersibuk pada blok ini) = ${targetDep}; dikurangi ±${nowDep} yang ada sekarang.` },
-        { label: railTarget ? 'Rangkaian tambahan' : 'Armada tambahan', value: `≈ ${fleet}`, how: `(${extra} ÷ 2 arah) × siklus PP ${cycleMin} menit ÷ (${hours} jam × 60 menit), dibulatkan ke atas. Siklus adalah asumsi umum, bukan data operator.` },
-        { label: 'Headway', value: `${fmtMin(headwayNow)} → ${fmtMin(headwayTarget)}`, how: `${hours} jam × 60 ÷ (keberangkatan per blok ÷ 2 arah).` },
+        {
+          label: 'Tambahan keberangkatan',
+          value: `${extra} per blok`,
+          how: `Tempat tersibuk pada jam ini punya ${ref} keberangkatan. Kami targetkan 60 persennya, yaitu ${targetDep}. Sekarang baru ${nowDep}, jadi kurang ${extra}.`,
+        },
+        {
+          label: `${unit[0].toUpperCase()}${unit.slice(1)} tambahan`,
+          value: `sekitar ${fleet}`,
+          how: `Satu perjalanan pulang pergi kami anggap ${cycleMin} menit. Untuk menambah ${extra} keberangkatan dalam ${hours} jam, butuh kira-kira ${fleet} ${unit} tambahan. Ini asumsi umum, bukan data operator.`,
+        },
+        {
+          label: 'Jeda keberangkatan',
+          value: `${fmtMin(headwayNow)} menjadi ${fmtMin(headwayTarget)}`,
+          how: `Sekarang ${moda} datang tiap ${fmtMin(headwayNow)}. Kalau targetnya tercapai, jadi tiap ${fmtMin(headwayTarget)}.`,
+        },
       ],
-      caveat: 'Angka indikatif untuk membuka pembicaraan dengan operator; ketersediaan rangkaian, slot jalur, dan biaya tidak dihitung SIMPUL.',
+      caveat: 'Angka kasar untuk membuka pembicaraan dengan operator. Ketersediaan rangkaian, slot jalur, dan biaya tidak dihitung SIMPUL.',
     }
+    const score = cl.length * 2 + evidence + (1 - service) * 5
     return {
       ...base,
       proposal,
       highlights: [
-        `${cl.length} sel di sekitar ${shortName(nearest)} ramai pada blok ${blockLabel(domBlock)}`,
-        `Skor layanan hanya ${Math.round(service * 100)}/100: ±${railDep} kereta dan ±${busDep} bus pada blok itu`,
-        `${evidence} laporan warga menjadi bukti · ${(avgNodeM / 1000).toFixed(1).replace('.', ',')} km ke stasiun terdekat`,
+        `${petak} di sekitar ${shortName(nearest)} tergolong ${levelWord} pada blok ${blok}.`,
+        `Skor layanan baru ${Math.round(service * 100)} dari 100: sekitar ${railDep} kereta dan ${busDep} bus pada blok itu.`,
+        `${evidence} laporan warga menjadi bukti. Stasiun terdekat ${km(avgNodeM)} km.`,
       ],
       target: railTarget ? 'KAI Commuter / operator rel' : 'TransJakarta / JakLingko',
-      title: `${shortName(nearest)}${stopName ? ` · ${stopName}` : ''}: ramai saat frekuensi rendah`,
-      place: `${shortName(nearest)}${stopName ? ` · ${stopName}` : ''}`,
-      headline: `Skor layanan ${Math.round(service * 100)}/100 saat ramai (${blockLabel(domBlock)})`,
-      body: `${cl.length} sel di sekitarnya ramai pada blok ${blockLabel(domBlock)}, tetapi skor layanan hanya ${Math.round(
-        service * 100,
-      )}/100 — ±${railDep} keberangkatan rel dan ±${busDep} keberangkatan bus terjadwal pada blok itu (${(avgNodeM / 1000).toFixed(1)} km ke stasiun terdekat).`,
-      action: `Jenis kandidat: penambahan frekuensi pada blok ${blockLabel(domBlock)}.`,
+      targetShort: railTarget ? ('KAI Commuter' as const) : ('TransJakarta' as const),
+      title: `${where}: ${levelWord} saat jadwal jarang`,
+      place: where,
+      headline: `Skor layanan ${Math.round(service * 100)} dari 100 saat ramai (${blok})`,
+      body: `${petak} di sekitarnya tergolong ${levelWord} pada blok ${blok}, tetapi skor layanan baru ${Math.round(service * 100)} dari 100: sekitar ${railDep} keberangkatan kereta dan ${busDep} bus terjadwal pada blok itu (${km(avgNodeM)} km ke stasiun terdekat).`,
+      action: `Jenis kandidat: penambahan frekuensi pada blok ${blok}.`,
       facts: [
-        { label: 'Sel ramai', value: `${cl.length}` },
+        { label: 'Petak', value: `${cl.length}` },
         { label: 'Bukti', value: `${evidence}` },
         { label: 'Skor layanan', value: `${Math.round(service * 100)}/100` },
       ],
-      score: cl.length * 2 + evidence + (1 - service) * 5,
-      rankBasis: `2 × ${cl.length} sel + ${evidence} bukti + 5 × (1 − ${service.toFixed(2)} layanan) = ${(
-        cl.length * 2 +
-        evidence +
-        (1 - service) * 5
-      ).toFixed(1)}`,
+      score,
+      rankBasis: `${cl.length} petak, ${evidence} laporan, dan layanan ${Math.round(service * 100)} dari 100; makin tipis layanan, makin tinggi urutannya. Skor ${score.toFixed(1)}.`,
+      rankParts: [`${cl.length} petak bersebelahan`, `${evidence} laporan warga`, `Skor layanan ${Math.round(service * 100)} dari 100 (makin tipis, makin tinggi urutannya)`, `Skor ${score.toFixed(1)}`],
     }
   })
 }
 
+const byScore = (a: Recommendation, b: Recommendation) => b.score - a.score
+
 export function buildRecommendations(model: SimpulModel): Recommendation[] {
-  const jangkauan = buildFor(model, 'jangkauan').sort((a, b) => b.score - a.score)
-  const jadwal = buildFor(model, 'jadwal').sort((a, b) => b.score - a.score)
-  // PRD: minimal 10 kandidat berperingkat; kedua jenis dijamin tampil.
-  const merged = [...jangkauan.slice(0, 8), ...jadwal.slice(0, 8)].sort((a, b) => b.score - a.score)
-  return merged.slice(0, 12)
+  // Prioritas: kedua jenis dijamin tampil, paling banyak 12.
+  const prioritas = [...buildFor(model, 'jangkauan', 'prioritas').sort(byScore).slice(0, 8), ...buildFor(model, 'jadwal', 'prioritas').sort(byScore).slice(0, 8)]
+    .sort(byScore)
+    .slice(0, 12)
+  // Pantau: paling banyak 10, nomornya melanjutkan nomor prioritas.
+  const pantau = [...buildFor(model, 'jangkauan', 'pantau'), ...buildFor(model, 'jadwal', 'pantau')].sort(byScore).slice(0, 10)
+  return [...prioritas, ...pantau]
 }

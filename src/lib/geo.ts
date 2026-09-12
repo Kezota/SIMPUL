@@ -1,5 +1,5 @@
 /**
- * Helper geospasial minimal — ditulis manual (bukan turf.js) supaya rumusnya
+ * Helper geospasial minimal, ditulis manual (bukan turf.js) supaya rumusnya
  * terlihat jelas dan bundle tetap kecil. Semua jarak dalam meter.
  */
 

@@ -1,4 +1,4 @@
-/** Bar horizontal sederhana — CSS murni, tanpa library chart. */
+/** Bar horizontal sederhana, CSS murni, tanpa library chart. */
 
 export interface BarDatum {
   label: string

@@ -2,7 +2,7 @@
  * Grid heksagon sederhana (pointy-top, koordinat axial).
  *
  * Ditulis manual (bukan library H3) supaya rumusnya terlihat dan bundle kecil.
- * Proyeksi memakai pendekatan meter-per-derajat lokal — cukup akurat untuk
+ * Proyeksi memakai pendekatan meter-per-derajat lokal, cukup akurat untuk
  * wilayah sekecil Bandung Raya (galat < 0,1%).
  */
 

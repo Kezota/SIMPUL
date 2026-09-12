@@ -1,5 +1,5 @@
 /**
- * Mesin hitung SIMPUL — Jabodetabek. Alur (detail + alasan tiap angka: PERHITUNGAN.md,
+ * Mesin hitung SIMPUL, Jabodetabek. Alur (detail + alasan tiap angka: PERHITUNGAN.md,
  * versi bahasa sederhana: CARA-KERJA.md):
  *
  *   1. Laporan warga Community Maps (API MAPID) → "bukti kegiatan":
@@ -21,14 +21,14 @@ import type { MapidActivity } from './mapidApi'
 import { blockOfHour, TIME_BLOCKS, type BlockId } from './timeblocks'
 import { loadJabodetabekNodes, PointIndex, TJ_STOPS, type BusStop } from './transitData'
 
-/* ── Bobot bukti (keputusan tim — sengaja terbuka biar bisa didebat) ─────── */
+/* ── Bobot bukti (keputusan tim, sengaja terbuka biar bisa didebat) ─────── */
 
 export const WEIGHTS = {
   /** Surveyor menulis "ramai/padat/antre" di laporannya. */
   aktivitasRamai: 2,
   /** Laporan tanpa keterangan keramaian. */
   aktivitas: 1,
-  /** Surveyor menulis "sepi/lengang" — tetap pengamatan, bukan "tidak ada data". */
+  /** Surveyor menulis "sepi/lengang", tetap pengamatan, bukan "tidak ada data". */
   aktivitasSepi: 0.5,
 }
 
@@ -94,6 +94,8 @@ export interface HexBlock {
   railDep: number
   busDep: number
   gap: GapKind
+  /** Keramaian tingkat sedang tetapi layanan tipis: belum mendesak, cukup dipantau. */
+  watch: boolean
 }
 
 export interface HexCell {
@@ -145,7 +147,7 @@ export interface TimedPoint {
 /**
  * Jam = "pukul …" yang ditulis surveyor kalau ada, kalau tidak jam unggah (WIB).
  * Bobot mengikuti keterangan keramaian yang ditulis surveyor (aturan kata
- * kunci di activityText.ts — bukan LLM).
+ * kunci di activityText.ts, bukan LLM).
  */
 function readActivities(list: MapidActivity[]) {
   const points: TimedPoint[] = []
@@ -175,7 +177,7 @@ function readActivities(list: MapidActivity[]) {
 
 function emptyBlocks(): Record<BlockId, HexBlock> {
   const mk = (): HexBlock => ({
-    observed: 0, total: 0, cls: null, percentile: 0, service: 0, railDep: 0, busDep: 0, gap: null,
+    observed: 0, total: 0, cls: null, percentile: 0, service: 0, railDep: 0, busDep: 0, gap: null, watch: false,
   })
   return { pagi: mk(), siang: mk(), sore: mk(), malam: mk(), larut: mk() }
 }
@@ -186,7 +188,7 @@ function percentile(sorted: number[], q: number) {
   return sorted[i]
 }
 
-/** Persentil-90 keberangkatan se-wilayah per blok — acuan "layanan penuh". */
+/** Persentil-90 keberangkatan se-wilayah per blok, acuan "layanan penuh". */
 function referenceDepartures(nodes: TransitNode[], stops: BusStop[]) {
   const rail = {} as Record<BlockId, number>
   const bus = {} as Record<BlockId, number>
@@ -303,6 +305,8 @@ export function buildModel(activities: MapidActivity[] = [], activitiesNote?: st
       if (hb.cls === 'ramai' && hb.service < SERVICE_LOW_THRESHOLD) {
         // Jangkauan: tidak ada layanan apa pun dalam jarak jalan kaki (PRD: 1 km).
         hb.gap = cell.nearestTransitM > WALK_M ? 'jangkauan' : 'jadwal'
+      } else if (hb.cls === 'sedang' && hb.service < SERVICE_LOW_THRESHOLD) {
+        hb.watch = true
       }
     }
   }
@@ -334,6 +338,7 @@ export interface BlockSummary {
   sedang: number
   gapJadwal: number
   gapJangkauan: number
+  watch: number
   totalPoints: number
 }
 
@@ -344,6 +349,7 @@ export function summarizeBlocks(model: SimpulModel): BlockSummary[] {
     let sedang = 0
     let gapJadwal = 0
     let gapJangkauan = 0
+    let watch = 0
     let totalPoints = 0
     for (const cell of model.cells) {
       const hb = cell.blocks[b.id]
@@ -352,8 +358,9 @@ export function summarizeBlocks(model: SimpulModel): BlockSummary[] {
       if (hb.cls === 'sedang') sedang++
       if (hb.gap === 'jadwal') gapJadwal++
       if (hb.gap === 'jangkauan') gapJangkauan++
+      if (hb.watch) watch++
       totalPoints += hb.total
     }
-    return { block: b.id, activeCells, ramai, sedang, gapJadwal, gapJangkauan, totalPoints }
+    return { block: b.id, activeCells, ramai, sedang, gapJadwal, gapJangkauan, watch, totalPoints }
   })
 }

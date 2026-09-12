@@ -1,5 +1,5 @@
 /**
- * Data transit Jabodetabek — SEMUA dari sumber nyata:
+ * Data transit Jabodetabek, SEMUA dari sumber nyata:
  *
  *  - Stasiun KRL/MRT/LRT + keanggotaan lintas : OpenStreetMap, relasi
  *    route=train|subway|light_rail (network KAI Commuter, MRT Jakarta,
@@ -41,7 +41,7 @@ export const LINE_PROFILES: Record<string, LineProfile> = {
   B: { name: 'Lin Bogor', tripsPerDay: 392, firstHour: 4, lastHour: 23.2, peakHeadway: 5, offHeadway: 10, source: 'Gapeka 2025 (KAI Commuter, 1 Feb 2025)' },
   C: { name: 'Lin Lingkar Cikarang', tripsPerDay: 281, firstHour: 4.2, lastHour: 23.8, peakHeadway: 10, offHeadway: 20, source: 'Gapeka 2025 (KAI Commuter, 1 Feb 2025)' },
   R: { name: 'Lin Rangkasbitung', tripsPerDay: 204, firstHour: 4, lastHour: 23.3, peakHeadway: 10, offHeadway: 20, source: 'Gapeka 2025 (KAI Commuter, 1 Feb 2025)' },
-  T: { name: 'Lin Tangerang', tripsPerDay: 124, firstHour: 4.4, lastHour: 23.8, peakHeadway: 12, offHeadway: 20, source: 'Gapeka 2023 (DJKA) — angka 2025 per lintas tidak dipublikasikan' },
+  T: { name: 'Lin Tangerang', tripsPerDay: 124, firstHour: 4.4, lastHour: 23.8, peakHeadway: 12, offHeadway: 20, source: 'Gapeka 2023 (DJKA), angka 2025 per lintas tidak dipublikasikan' },
   TP: { name: 'Lin Tanjung Priuk', tripsPerDay: 86, firstHour: 5.5, lastHour: 21, peakHeadway: 30, offHeadway: 30, source: 'Gapeka 2023 (DJKA)' },
   A: { name: 'Lin Bandara Soekarno-Hatta', tripsPerDay: 56, firstHour: 5, lastHour: 23, peakHeadway: 30, offHeadway: 30, source: 'Gapeka 2023 (DJKA)' },
   LW: { name: 'Commuter Line Walahar', tripsPerDay: 8, firstHour: 5, lastHour: 20, peakHeadway: 120, offHeadway: 120, source: 'Perkiraan dari jadwal publik KA lokal' },

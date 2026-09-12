@@ -1,25 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { FileText, MapPin } from 'lucide-react'
 
-import { summarizeBlocks, type SimpulModel } from '../lib/engine'
+import type { SimpulModel } from '../lib/engine'
 import type { Recommendation } from '../lib/recommend'
 import type { Role } from '../lib/roles'
-import { TIME_BLOCKS, type BlockId } from '../lib/timeblocks'
+import { TIME_BLOCKS } from '../lib/timeblocks'
 import type { MapMode } from './MapView'
-import RecDetail from './RecDetail'
 import InfoTip from './InfoTip'
-import type { GlossaryKey } from '../lib/glossary'
-
-const FACT_KEY: Record<string, GlossaryKey> = { 'Sel ramai': 'sel_ramai', Bukti: 'bukti', 'Ke layanan': 'ke_layanan', 'Skor layanan': 'skor_layanan' }
+import RecDetail from './RecDetail'
 
 const KIND_LABEL = { jangkauan: 'Tak terjangkau', jadwal: 'Frekuensi rendah' } as const
-const CONF_HINT = {
-  tinggi: 'Keyakinan tinggi: ≥ 8 laporan di ≥ 2 sel bersebelahan',
-  sedang: 'Keyakinan sedang: 3–7 laporan',
-  rendah: 'Keyakinan rendah: < 3 laporan — perlu survei lanjutan',
-} as const
-const CONF_DOTS = { tinggi: 3, sedang: 2, rendah: 1 } as const
+const CONF_LABEL = { tinggi: 'Yakin: tinggi', sedang: 'Yakin: sedang', rendah: 'Yakin: rendah' } as const
 
-type SortKey = 'skor' | 'bukti' | 'keyakinan'
+type GroupKey = 'instansi' | 'jenis' | 'waktu' | 'keyakinan'
+const GROUPS: { id: GroupKey; label: string }[] = [
+  { id: 'instansi', label: 'Instansi' },
+  { id: 'jenis', label: 'Jenis masalah' },
+  { id: 'waktu', label: 'Blok waktu' },
+  { id: 'keyakinan', label: 'Keyakinan' },
+]
+
+const groupOf = (r: Recommendation, g: GroupKey) =>
+  g === 'instansi'
+    ? r.targetShort === 'KAI Commuter'
+      ? 'KAI Commuter: frekuensi kereta'
+      : 'TransJakarta / JakLingko: rute pengumpan dan frekuensi bus'
+    : g === 'jenis'
+      ? KIND_LABEL[r.kind]
+      : g === 'waktu'
+        ? `Blok ${TIME_BLOCKS.find((b) => b.id === r.block)?.label ?? '-'}`
+        : `Keyakinan ${r.confidence}`
 
 /* ── Panel Kandidat ───────────────────────────────────────────────────────── */
 
@@ -27,49 +37,43 @@ export default function RecPanel({
   model,
   recs,
   role,
-  block,
   mode,
   loading,
   activeRecId,
-  onSetBlock,
   onFocus,
   onShowGap,
 }: {
   model: SimpulModel
   recs: Recommendation[]
   role: Role
-  block: BlockId
   mode: MapMode
   loading: boolean
   activeRecId: string | null
-  onSetBlock: (b: BlockId) => void
   onFocus: (r: Recommendation) => void
   onShowGap: () => void
 }) {
-  const summaries = summarizeBlocks(model)
-  const peak = Math.max(1, ...summaries.map((s) => s.totalPoints))
   const listRef = useRef<HTMLDivElement>(null)
-  const [sort, setSort] = useState<SortKey>('skor')
-  const [showOthers, setShowOthers] = useState(false)
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [group, setGroup] = useState<GroupKey>(role.id === 'kai' || role.id === 'tj' ? 'instansi' : 'jenis')
+  const [showPantau, setShowPantau] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
 
-  // Nomor kandidat = urutan skor (sama dengan nomor di peta), apa pun urutan tampilnya.
   const numbered = useMemo(() => recs.map((r, i) => ({ r, n: i + 1 })), [recs])
-  const sorted = useMemo(() => {
-    const arr = [...numbered]
-    if (sort === 'bukti') arr.sort((a, b) => b.r.evidenceCount - a.r.evidenceCount || b.r.score - a.r.score)
-    if (sort === 'keyakinan') arr.sort((a, b) => CONF_DOTS[b.r.confidence] - CONF_DOTS[a.r.confidence] || b.r.score - a.r.score)
-    return arr
-  }, [numbered, sort])
-  const mine = sorted.filter((x) => role.owns(x.r))
-  const others = sorted.filter((x) => !role.owns(x.r))
+  const prioritas = numbered.filter((x) => x.r.tier === 'prioritas')
+  const pantau = numbered.filter((x) => x.r.tier === 'pantau')
+  const activeIsPantau = activeRecId !== null && pantau.some((x) => x.r.id === activeRecId)
+  const pantauVisible = showPantau || activeIsPantau
 
-  const activeIsOther = activeRecId !== null && others.some((x) => x.r.id === activeRecId)
-  const othersVisible = showOthers || activeIsOther
-  const expanded = openId ?? activeRecId
+  // Kelompok milik peran ditaruh paling atas.
+  const grouped = (items: typeof numbered) => {
+    const m = new Map<string, typeof numbered>()
+    for (const x of items) {
+      const k = groupOf(x.r, group)
+      if (!m.has(k)) m.set(k, [])
+      m.get(k)!.push(x)
+    }
+    return [...m.entries()].sort(([, a], [, b]) => Number(b.some((x) => role.owns(x.r))) - Number(a.some((x) => role.owns(x.r))))
+  }
 
-  // Marker bernomor di peta / asisten menyorot kartu → gulir masuk.
   useEffect(() => {
     if (!activeRecId || !listRef.current) return
     const raf = requestAnimationFrame(() =>
@@ -79,145 +83,125 @@ export default function RecPanel({
   }, [activeRecId])
 
   const card = ({ r, n }: { r: Recommendation; n: number }) => {
-    const isOpen = expanded === r.id
+    const active = activeRecId === r.id
     const blockMeta = r.block ? TIME_BLOCKS.find((b) => b.id === r.block) : null
     return (
-      <li key={r.id} data-rec={r.id} className={`rc rc-${r.kind}${activeRecId === r.id ? ' is-active' : ''}${isOpen ? ' is-open' : ''}`}>
-        <button
-          type="button"
-          className="rc-head"
-          aria-expanded={isOpen}
-          onClick={() => setOpenId(isOpen ? (activeRecId === r.id ? '' : null) : r.id)}
-        >
-          <span className="rc-num">{n}</span>
-          <span className="rc-body">
-            <span className="rc-place">{r.place}</span>
-            <span className="rc-headline">{r.headline}</span>
-            <span className="rc-meta">
-              <i className="rc-kind">{KIND_LABEL[r.kind]}</i>
-              <i className="rc-conf" title={CONF_HINT[r.confidence]} aria-label={CONF_HINT[r.confidence]}>
-                {[1, 2, 3].map((d) => (
-                  <b key={d} className={d <= CONF_DOTS[r.confidence] ? 'on' : undefined} />
-                ))}
-              </i>
-              <i>{r.evidenceCount} laporan</i>
-              {blockMeta && <i>{blockMeta.label}</i>}
+      <li key={r.id} data-rec={r.id} className={`cd cd-${r.kind} cd-${r.tier}${active ? ' is-active' : ''}`}>
+        <button type="button" className="cd-main" onClick={() => onFocus(r)} aria-pressed={active} title="Tampilkan di peta">
+          <span className="cd-num">{n}</span>
+          <span className="cd-txt">
+            <span className="cd-place">{r.place}</span>
+            <span className="cd-line">{r.headline}</span>
+            <span className="cd-tags">
+              <i className="cd-tag cd-tag-kind">{KIND_LABEL[r.kind]}</i>
+              {blockMeta && <i className="cd-tag">{blockMeta.label}</i>}
+              <i className={`cd-tag cd-tag-conf-${r.confidence}`}>{CONF_LABEL[r.confidence]}</i>
             </span>
           </span>
-          <span className="rc-chev" aria-hidden="true" />
         </button>
-        {isOpen && (
-          <div className="rc-detail">
-            <div className="rc-stats">
-              {r.facts.map((f) => (
-                <span key={f.label}>
-                  <b>{f.value}</b>
-                  <small>
-                    {f.label}
-                    {FACT_KEY[f.label] && <InfoTip k={FACT_KEY[f.label]} corner />}
-                  </small>
-                </span>
+        {active && (
+          <div className="cd-prop">
+            <b>{r.proposal.headline}</b>
+            <ul>
+              {r.proposal.points.map((pt) => (
+                <li key={pt.label}>
+                  <span>{pt.label}</span> {pt.value}
+                </li>
               ))}
-            </div>
-            <p className="rc-proposal">{r.proposal.summary}</p>
-            <div className="rc-est">
-              {r.proposal.estimate.slice(0, 2).map((e) => (
-                <span key={e.label}>
-                  {e.label}: {e.value}
-                  <InfoTip text={e.how} />
-                </span>
-              ))}
-            </div>
-            <div className="rc-btns">
-              <button type="button" className="btn small" onClick={() => onFocus(r)}>
-                Lihat di peta →
-              </button>
-              <button type="button" className="btn small ghost" onClick={() => setDetailId(r.id)}>
-                Detail lengkap
-              </button>
-            </div>
+            </ul>
           </div>
         )}
+        <div className="cd-foot">
+          <span className="cd-ev">
+            {r.evidenceCount} laporan · {r.cellKeys.length} petak
+          </span>
+          <span className="cd-btns">
+            {!active && (
+              <button type="button" className="cd-btn ghost" onClick={() => onFocus(r)}>
+                <MapPin size={14} /> Peta
+              </button>
+            )}
+            <button type="button" className="cd-btn" onClick={() => setDetailId(r.id)}>
+              <FileText size={14} /> Detail
+            </button>
+          </span>
+        </div>
       </li>
     )
   }
 
+  const section = (items: typeof numbered) =>
+    grouped(items).map(([title, xs]) => (
+      <div key={title} className="cd-group">
+        <h4>
+          {title} <span className="cd-count">{xs.length}</span>
+        </h4>
+        <ul className="cd-list">{xs.map(card)}</ul>
+      </div>
+    ))
+
   return (
-    <div className="panel panel-rec" ref={listRef}>
-      {/* Grafik mini: kapan datanya "hidup". Klik batang = pindah blok. */}
-      <section className="blk">
-        <div className="blk-head">
-          <h3>
-            Aktivitas per blok waktu <InfoTip k="aktivitas_blok" />
-          </h3>
-        </div>
-        {loading ? (
-          <p className="skeleton-line">Memuat laporan warga dari MAPID…</p>
-        ) : (
-          <div className="blk-chart" role="group" aria-label="Aktivitas per blok waktu">
-            {summaries.map((s) => {
-              const b = TIME_BLOCKS.find((t) => t.id === s.block)!
-              return (
-                <button
-                  key={s.block}
-                  type="button"
-                  className={s.block === block ? 'on' : undefined}
-                  onClick={() => onSetBlock(s.block)}
-                  title={`${b.label} ${b.range}: ${Math.round(s.totalPoints)} poin · ${s.ramai} sel ramai · ${s.gapJadwal + s.gapJangkauan} sel ber-gap`}
-                >
-                  <span className="blk-val">{Math.round(s.totalPoints)}</span>
-                  <span className="blk-bar" style={{ height: `${Math.max(4, (s.totalPoints / peak) * 100)}%` }} />
-                  <span className="blk-lbl">{b.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      <section className="blk">
-        <div className="blk-head">
-          <h3>
-            {role.ownedTitle} <span className="count-pill">{mine.length}</span>
-          </h3>
-          <label className="sort">
-            <span className="sr-only">Urutkan</span>
-            <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} title="Urutkan kandidat">
-              <option value="skor">Skor</option>
-              <option value="bukti">Bukti</option>
-              <option value="keyakinan">Keyakinan</option>
-            </select>
-          </label>
-        </div>
-
+    <div className="panel cd-panel" ref={listRef}>
+      <header className="cd-top">
+        <h2>Kandidat</h2>
+        <p>
+          Kawasan yang ramai menurut warga tetapi layanan transitnya kurang.{' '}
+          {loading ? 'Sedang dihitung.' : `${prioritas.length} prioritas, ${pantau.length} perlu dipantau.`}
+        </p>
         {mode !== 'gap' && recs.length > 0 && (
-          <button type="button" className="link-btn inline-cta" onClick={onShowGap}>
-            Tampilkan nomor kandidat di peta →
+          <button type="button" className="btn small" onClick={onShowGap}>
+            Tampilkan nomornya di peta
           </button>
         )}
-        {loading && <p className="skeleton-line">Menghitung kandidat…</p>}
-        {!loading && mine.length === 0 && (
-          <p className="empty-state">
-            {recs.length === 0 ? 'Belum ada kawasan ramai yang layanannya kurang.' : 'Tidak ada kandidat untuk peran ini — lihat kandidat instansi lain di bawah.'}
-          </p>
-        )}
-        <ul className="rc-list">{mine.map(card)}</ul>
+      </header>
 
-        {others.length > 0 && (
-          <>
-            <button type="button" className="link-btn others-toggle" onClick={() => setShowOthers(!othersVisible)}>
-              {othersVisible ? 'Sembunyikan' : 'Tampilkan'} {others.length} kandidat instansi lain {othersVisible ? '↑' : '↓'}
-            </button>
-            {othersVisible && <ul className="rc-list rc-list-others">{others.map(card)}</ul>}
-          </>
-        )}
-        <p className="foot-note">Urutan = bukti paling kuat lebih dulu, bukan urutan investasi. Rumus ada di tab Metode &amp; data.</p>
+      <div className="cd-tools">
+        <label>
+          <span>Kelompokkan</span>
+          <select value={group} onChange={(e) => setGroup(e.target.value as GroupKey)}>
+            {GROUPS.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <section className="cd-tier">
+        <h3>
+          Prioritas <span className="cd-count">{prioritas.length}</span> <InfoTip k="prioritas" />
+        </h3>
+        {loading && <p className="skeleton-line">Menghitung kandidat…</p>}
+        {!loading && prioritas.length === 0 && <p className="empty-state">Belum ada kawasan ramai yang layanannya kurang.</p>}
+        {section(prioritas)}
       </section>
 
-      {detailId !== null && (() => {
-        const i = recs.findIndex((r) => r.id === detailId)
-        return i >= 0 ? <RecDetail rec={recs[i]} index={i} model={model} onClose={() => setDetailId(null)} onFocus={onFocus} /> : null
-      })()}
+      {pantau.length > 0 && (
+        <section className="cd-tier cd-tier-pantau">
+          <h3>
+            Perlu dipantau <span className="cd-count">{pantau.length}</span> <InfoTip k="pantau" />
+          </h3>
+          <p className="cd-tier-note">Keramaiannya baru tingkat sedang, tetapi layanannya sudah tipis. Belum mendesak.</p>
+          {pantauVisible ? (
+            section(pantau)
+          ) : (
+            <button type="button" className="btn small ghost" onClick={() => setShowPantau(true)}>
+              Tampilkan {pantau.length} kawasan
+            </button>
+          )}
+        </section>
+      )}
+
+      <p className="foot-note">
+        Urutan dari bukti paling kuat, bukan urutan biaya. <InfoTip k="skor_peringkat" />
+      </p>
+
+      {detailId !== null &&
+        (() => {
+          const i = recs.findIndex((r) => r.id === detailId)
+          return i >= 0 ? <RecDetail rec={recs[i]} index={i} model={model} onClose={() => setDetailId(null)} onFocus={onFocus} /> : null
+        })()}
     </div>
   )
 }

@@ -1,18 +1,30 @@
-/** Penjelasan tiap angka di UI — dipakai tombol "i" (InfoTip). Satu sumber supaya konsisten. */
+/** Penjelasan tiap angka untuk tombol "i". Bahasa sehari-hari, tanpa rumus. */
 export const GLOSSARY = {
-  kereta_blok: 'Perkiraan jumlah keberangkatan kereta (dua arah) yang terjadwal di stasiun ini pada blok waktu terpilih. Dari jumlah perjalanan harian resmi (Gapeka/headway operator) yang dibagi ke blok memakai bobot jam sibuk.',
-  skor_layanan: 'Keberangkatan di simpul ini dibanding simpul tersibuk pada blok yang sama, skala 0–100. Contoh: 32/100 = hanya sepertiga dari acuan. ≤ 35 dianggap "tipis", 35–70 "sedang", > 70 "memadai".',
-  sel_ramai: 'Sel heksagon (±500 m) yang termasuk 25% teratas poin kegiatan se-wilayah pada blok itu. "Ramai" selalu relatif terhadap kawasan lain, bukan angka absolut.',
-  laporan_warga: 'Jumlah laporan aktivitas dari warga (Community Maps MAPID) yang lokasinya jatuh di sel-sel tersebut. Satu laporan = satu orang menandai satu titik.',
-  bukti: 'Jumlah laporan warga yang mendukung kandidat ini. Makin banyak, makin tinggi keyakinan.',
-  ke_layanan: 'Jarak lurus rata-rata dari sel ke stasiun/halte terdekat. Lebih dari 1 km dianggap di luar jangkauan jalan kaki.',
-  keyakinan: 'Tinggi = ≥ 8 laporan di ≥ 2 sel bersebelahan. Sedang = 3–7 laporan. Rendah = < 3 laporan (perlu survei sebelum ditindaklanjuti).',
-  skor_peringkat: 'Urutan bukti terkuat lebih dulu: tak terjangkau = 3 × sel + bukti; frekuensi rendah = 2 × sel + bukti + 5 × (1 − skor layanan/100). Bukan urutan investasi.',
-  aktivitas_blok: 'Total poin kegiatan dari laporan warga per blok waktu. Poin = 1 per laporan, ditambah bobot kalau warga menyebut "ramai". Klik batang untuk memindahkan peta ke blok itu.',
-  tak_terjangkau: 'Sel ramai yang tidak punya stasiun/halte dalam 1 km jalan lurus.',
-  frekuensi_rendah: 'Sel ramai yang punya layanan dalam 1 km, tetapi skor layanannya < 35/100 pada blok itu.',
-  menyebut_ramai: 'Berapa dari laporan itu yang teksnya menyebut kondisi ramai/padat (dari kata kunci di laporan).',
-  perkiraan_armada: 'Hitungan indikatif dari headway dan siklus perjalanan; asumsinya ditulis terbuka di tiap angka. Bukan rencana operasi.',
+  kereta_blok:
+    'Perkiraan berapa kali kereta berangkat dari stasiun ini (dua arah) selama blok waktu yang dipilih. Angkanya dari jadwal resmi harian yang kami bagi ke tiap blok; jam sibuk mendapat porsi lebih besar.',
+  skor_layanan:
+    'Seberapa sering layanan berangkat di sini dibanding tempat tersibuk pada jam yang sama. Nilai 100 artinya sama seringnya dengan yang tersibuk. Di bawah 35 kami sebut tipis, 35 sampai 70 sedang, di atas 70 memadai.',
+  sel_ramai:
+    'Petak peta seluas kira-kira 500 meter yang masuk seperempat paling ramai se-Jabodetabek pada jam itu. Ramai di sini selalu dibandingkan dengan kawasan lain, bukan angka pasti.',
+  laporan_warga:
+    'Jumlah laporan yang dikirim warga lewat Community Maps MAPID di kawasan ini. Satu laporan berarti satu orang menandai satu lokasi dan menuliskan apa yang dilihatnya.',
+  bukti: 'Jumlah laporan warga yang mendukung kandidat ini. Makin banyak laporan, makin yakin kami.',
+  ke_layanan:
+    'Jarak rata-rata dari kawasan ini ke stasiun atau halte terdekat, diukur garis lurus. Lebih dari 1 km kami anggap terlalu jauh untuk jalan kaki.',
+  keyakinan:
+    'Tinggi kalau ada 8 laporan atau lebih di dua petak yang bersebelahan. Sedang kalau 3 sampai 7 laporan. Rendah kalau kurang dari 3; sebaiknya disurvei dulu sebelum ditindaklanjuti.',
+  skor_peringkat:
+    'Kandidat diurutkan dari bukti yang paling kuat: makin luas kawasannya, makin banyak laporannya, dan makin tipis layanannya, makin tinggi urutannya. Ini bukan urutan biaya atau investasi.',
+  aktivitas_blok:
+    'Seberapa banyak kegiatan yang dilaporkan warga pada jam itu. Laporan yang menyebut ramai dihitung dua kali, yang menyebut sepi dihitung setengah.',
+  tak_terjangkau: 'Kawasan ramai yang tidak punya stasiun atau halte dalam jarak 1 km.',
+  frekuensi_rendah: 'Kawasan ramai yang punya stasiun atau halte di dekatnya, tetapi jadwalnya jarang pada jam itu.',
+  menyebut_ramai: 'Berapa laporan yang di teksnya menulis kata seperti ramai, padat, atau antre. Dibaca dari teks laporan, bukan tebakan.',
+  perkiraan_armada:
+    'Angka kasar untuk membuka pembicaraan, dihitung dari seberapa sering layanan berangkat dan berapa lama satu perjalanan pulang pergi. Bukan rencana operasi.',
+  pantau:
+    'Kawasan ini keramaiannya tingkat sedang, belum masuk seperempat teratas, tetapi layanannya sudah tipis. Belum mendesak; cukup dipantau dan disurvei.',
+  prioritas: 'Kawasan yang masuk seperempat paling ramai se-Jabodetabek pada jam itu dan layanan transitnya kurang.',
 } as const
 
 export type GlossaryKey = keyof typeof GLOSSARY

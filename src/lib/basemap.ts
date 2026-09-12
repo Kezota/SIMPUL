@@ -4,7 +4,7 @@ import type { MapOptions } from 'maplibre-gl'
 type Style = NonNullable<MapOptions['style']>
 
 /**
- * BASEMAP — MAPID MAPS (wajib menurut ketentuan lomba) dengan cadangan publik.
+ * BASEMAP, MAPID MAPS (wajib menurut ketentuan lomba) dengan cadangan publik.
  *
  * MAPID Maps menyediakan style vektor di
  *   https://basemap.mapid.io/styles/<nama>/style.json?key=<API key Map Services>
@@ -93,4 +93,4 @@ export function getBasemapStyle(variant: BasemapVariant): Style {
 
 export const BASEMAP_NOTE = usingMapidBasemap
   ? 'Basemap: MAPID MAPS (basemap.mapid.io)'
-  : 'Basemap sementara: CARTO/OSM — isi VITE_MAPID_API_KEY untuk MAPID MAPS'
+  : 'Basemap sementara: CARTO/OSM, isi VITE_MAPID_API_KEY untuk MAPID MAPS'

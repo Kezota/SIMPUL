@@ -1,5 +1,5 @@
 /**
- * API MAPID untuk kompetisi — Community Maps "Activities".
+ * API MAPID untuk kompetisi, Community Maps "Activities".
  *
  * Dokumentasi: maps.mapid.io/docs → Guides → Activities.
  *   POST https://server.mapid.io/web/competition/activities
@@ -16,7 +16,7 @@
  *
  * Kalau server tidak bisa dihubungi (offline, key kosong), aplikasi memakai
  * snapshot `src/data/activitiesJabodetabek.json` (unduhan 9 Sep 2026) supaya
- * demo tetap jalan — dan status "snapshot" ditampilkan jujur di topbar.
+ * demo tetap jalan, dan status "snapshot" ditampilkan jujur di topbar.
  */
 
 export interface MapidActivity {
@@ -43,7 +43,7 @@ export interface ActivityFeed {
 
 /** Endpoint asli MAPID (dipanggil oleh proxy/server, bukan browser). */
 export const ACTIVITIES_UPSTREAM = 'https://server.mapid.io/web/competition/activities'
-/** Endpoint yang dipanggil browser — backend tipis kita sendiri. */
+/** Endpoint yang dipanggil browser, backend tipis kita sendiri. */
 export const ACTIVITIES_ENDPOINT = '/api/activities'
 
 type Bbox = [number, number, number, number]
@@ -168,7 +168,7 @@ export async function loadActivities(bbox: Bbox, signal?: AbortSignal): Promise<
       items,
       status: items.length ? 'snapshot' : 'kosong',
       note: items.length
-        ? `Community Maps: snapshot API MAPID kompetisi (${fetched}, ${items.length.toLocaleString('id-ID')} aktivitas) — server tidak terjangkau saat dimuat`
+        ? `Community Maps: snapshot API MAPID kompetisi (${fetched}, ${items.length.toLocaleString('id-ID')} aktivitas), server tidak terjangkau saat dimuat`
         : 'Community Maps: API MAPID tidak terjangkau dan tidak ada snapshot untuk wilayah ini',
       bboxKey: key,
     }

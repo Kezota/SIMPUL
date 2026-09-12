@@ -1,5 +1,5 @@
 /**
- * Asisten "Tanya AI" — Gemini (function calling) dipanggil langsung dari browser.
+ * Asisten "Tanya AI", Gemini (function calling) dipanggil langsung dari browser.
  *
  * Alur satu pertanyaan:
  *   1. kirim riwayat + konteks + daftar alat ke Gemini → model memilih alat;
@@ -11,7 +11,7 @@
  */
 
 import { askSimpul, type SimpulAnswer } from './assistant'
-import { GEMINI_API_KEY, GEMINI_MODEL, SIMPUL_TOOLS, buildSystemPrompt, type AssistantContext } from './aiTools'
+import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_FALLBACK_MODEL, SIMPUL_TOOLS, buildSystemPrompt, type AssistantContext } from './aiTools'
 import { summarizeBlocks, type HexCell, type SimpulModel } from './engine'
 import type { Recommendation } from './recommend'
 import { TIME_BLOCKS, type BlockId } from './timeblocks'
@@ -23,7 +23,7 @@ export interface AssistantResult extends SimpulAnswer {
   engine: AssistantEngine
   setMode: 'denyut' | 'gap' | null
   activeRec: string | null
-  /** Alasan jatuh ke mode aturan (kalau ada) — ditampilkan kecil di panel. */
+  /** Alasan jatuh ke mode aturan (kalau ada), ditampilkan kecil di panel. */
   fallbackReason: string | null
 }
 
@@ -44,6 +44,7 @@ interface ToolEnv {
 
 const recRow = (r: Recommendation, i: number) => ({
   nomor: i + 1,
+  tingkat: r.tier === 'prioritas' ? 'prioritas (ramai + layanan kurang)' : 'perlu dipantau (keramaian sedang + layanan tipis)',
   judul: r.title,
   jenis: r.kind === 'jangkauan' ? 'jangkauan (tak terjangkau)' : 'jadwal (frekuensi rendah)',
   target: r.target,
@@ -63,11 +64,11 @@ const recDetail = (r: Recommendation, i: number) => ({
       ? '≥ 8 laporan di ≥ 2 sel bersebelahan'
       : r.confidence === 'sedang'
         ? '3–7 laporan'
-        : '< 3 laporan — perlu survei lanjutan',
+        : '< 3 laporan, perlu survei lanjutan',
   penjelasan: r.body,
   usulan: r.proposal.summary,
   langkah_usulan: r.proposal.steps,
-  perkiraan_indikatif: r.proposal.estimate.map((e) => `${e.label}: ${e.value} — ${e.how}`),
+  perkiraan_indikatif: r.proposal.estimate.map((e) => `${e.label}: ${e.value}. ${e.how}`),
   catatan_usulan: r.proposal.caveat,
   stasiun_terdekat: r.nearestNode.name,
   pusat: { lat: Number(r.focus.lat.toFixed(5)), lon: Number(r.focus.lon.toFixed(5)) },
@@ -105,6 +106,8 @@ function runTool(name: string, input: Record<string, unknown>, env: ToolEnv): un
     case 'ringkasan_kota': {
       const s = summarizeBlocks(model)
       return {
+        kandidat_prioritas: recs.filter((r) => r.tier === 'prioritas').length,
+        kawasan_perlu_dipantau: recs.filter((r) => r.tier === 'pantau').length,
         laporan_warga: model.counts.activities,
         sumber_data: model.sources,
         stasiun: model.nodes.length,
@@ -217,11 +220,16 @@ const summarizeArgs = (input: Record<string, unknown>) =>
 /* ── Jalur instan (tanpa AI) ──────────────────────────────────────────────── */
 
 const QUICK_ROUTES = new Set([
-  'Rute: banding dua kandidat (rumus peringkat terbuka)',
+  'Rute: banding dua kandidat',
   'Rute: detail satu kandidat',
   'Rute: ringkasan kota',
-  'Rute: sel ramai per blok',
-  'Rute: kantong kesenjangan jangkauan',
+  'Rute: petak ramai per blok',
+  'Rute: kawasan tak terjangkau',
+  'Rute: kandidat menurut keyakinan',
+  'Rute: jumlah kandidat per instansi',
+  'Rute: blok dengan kesenjangan terbanyak',
+  'Rute: kandidat frekuensi rendah',
+  'Rute: kandidat tak terjangkau',
 ])
 
 /**
@@ -233,11 +241,11 @@ function quickAnswer(question: string, model: SimpulModel, recs: Recommendation[
   const openEnded = /kenapa|mengapa|bagaimana|jelaskan|apakah|sebaiknya|saran|menurut|kalau|jika|bandingkan dengan|apa bedanya/.test(q)
   const r = askSimpul(question, model, recs)
   const route = r.trace.find((t) => t.startsWith('Rute:')) ?? ''
-  if (route === 'Rute: banding dua kandidat (rumus peringkat terbuka)' || route === 'Rute: detail satu kandidat') return r
+  if (route === 'Rute: banding dua kandidat' || route === 'Rute: detail satu kandidat') return r
   if (openEnded) return null
   if (QUICK_ROUTES.has(route)) return r
-  if (route === 'Rute: profil kawasan satu simpul' && /sekitar|stasiun|kawasan|daerah/.test(q)) return r
-  if (route === 'Rute: daftar rekomendasi (aturan deterministik, bukan karangan)' && q.split(/\s+/).length <= 6) return r
+  if (route === 'Rute: profil kawasan satu stasiun' && /sekitar|stasiun|kawasan|daerah/.test(q)) return r
+  if (route === 'Rute: daftar kandidat' && q.split(/\s+/).length <= 6) return r
   return null
 }
 
@@ -281,11 +289,11 @@ export class AssistantSession {
     onProgress?: (step: string) => void,
   ): Promise<AssistantResult> {
     // 1) Pertanyaan rutin (banding/detail kandidat, ringkasan, sel ramai per blok,
-    //    profil stasiun) dijawab langsung dari mesin hitung — instan, tanpa kuota AI.
+    //    profil stasiun) dijawab langsung dari mesin hitung, instan, tanpa kuota AI.
     const quick = quickAnswer(question, model, recs)
     if (quick) return { ...quick, engine: 'instan', setMode: null, activeRec: null, fallbackReason: null }
     // 2) Sisanya ke Gemini; 3) kalau gagal, mode aturan.
-    if (this.llmAvailable === false) return this.rules(question, model, recs, 'VITE_GEMINI_API_KEY belum diisi')
+    if (this.llmAvailable === false) return this.rules(question, model, recs, GEMINI_API_KEY ? 'Kunci API Gemini tidak diterima' : 'Kunci API Gemini belum dipasang')
     try {
       return await this.llm(question, model, recs, ctx, onProgress)
     } catch (err) {
@@ -327,8 +335,9 @@ export class AssistantSession {
       candidates?: { content?: GContent; finishReason?: string }[]
       promptFeedback?: { blockReason?: string }
     }
+    let modelName = GEMINI_MODEL
     const call = async (): Promise<{ res: Response; data: GResp }> => {
-      const res = await fetch(ENDPOINT(GEMINI_MODEL, GEMINI_API_KEY), {
+      const res = await fetch(ENDPOINT(modelName, GEMINI_API_KEY), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: body(),
@@ -340,16 +349,24 @@ export class AssistantSession {
     for (let round = 0; round < MAX_ROUNDS; round++) {
       onProgress?.(round === 0 ? 'Memahami pertanyaan…' : 'Merangkai jawaban dari hasil alat…')
       let { res, data } = await call()
-      // Gemini free tier kadang 429/503 sesaat — coba sekali lagi setelah jeda pendek.
+      // Gemini free tier kadang 429/503 sesaat, coba sekali lagi setelah jeda pendek.
       if (res.status === 429 || res.status === 503) {
         onProgress?.('Gemini sibuk, mencoba lagi…')
         await new Promise((r) => setTimeout(r, 2000))
         ;({ res, data } = await call())
       }
+      // Masih gagal dan ada model cadangan: coba sekali dengan model itu.
+      if (!res.ok && GEMINI_FALLBACK_MODEL && modelName !== GEMINI_FALLBACK_MODEL && res.status !== 400 && res.status !== 403) {
+        modelName = GEMINI_FALLBACK_MODEL
+        onProgress?.('Mencoba model cadangan…')
+        ;({ res, data } = await call())
+      }
       if (!res.ok) {
         const msg = data.error?.message || `HTTP ${res.status}`
         if (res.status === 400 || res.status === 403) this.llmAvailable = false // kunci salah / model tidak tersedia
-        throw new Error(res.status === 429 ? `Kuota Gemini habis sementara (${msg})` : msg)
+        throw new Error(
+          res.status === 429 ? 'Kuota Gemini sedang habis' : res.status === 503 ? 'Server Gemini sedang sibuk' : res.status === 403 || res.status === 400 ? 'Kunci API Gemini tidak diterima' : `Gemini tidak bisa dihubungi (${msg})`,
+        )
       }
       this.llmAvailable = true
 
@@ -380,7 +397,7 @@ export class AssistantSession {
 
     if (!answer) answer = 'Asisten tidak menghasilkan jawaban. Coba ulangi dengan pertanyaan yang lebih spesifik.'
     env.trace.push(
-      `Output: kalimat oleh ${GEMINI_MODEL}; angka dari ${env.trace.length - 1} panggilan alat` +
+      `Hasil: kalimat disusun ${modelName}; angka dari ${env.trace.length - 1} panggilan alat` +
         (env.ui.setBlock ? ` · pindah blok ${env.ui.setBlock}` : '') +
         (env.ui.focus ? ' · fly-to' : ''),
     )
