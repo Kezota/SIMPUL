@@ -5,6 +5,8 @@
 **Peta kapan kota hidup, dan apakah transportasi massalnya hadir pada jam itu. Jabodetabek.**
 Prototipe WebGIS tim COOK untuk MAPID WebGIS Competition 2026 (_Maps That Think! Mass Transportation Edition_).
 
+**Video Demo:** [SIMPUL Demo Video](https://drive.google.com/file/d/13De2YS9wka5-ba7SVt3xDqPZkmaEjDxx/view?usp=drive_link)
+
 🔗 **Coba langsung:** [simpul-webgis.vercel.app](https://simpul-webgis.vercel.app/)
 
 > Kota punya denyut: ramai jam sekian, sepi jam sekian. SIMPUL membacanya dari laporan lapangan warga di Community Maps MAPID, lalu menabrakkannya dengan layanan transit yang benar-benar ada: stasiun, halte, dan jadwalnya. Hasilnya: peta yang bisa digeser per blok waktu, kawasan "ramai tapi tak terlayani" tersorot otomatis, dan daftar kandidat berperingkat untuk KAI Commuter, TransJakarta, dan Dishub.
