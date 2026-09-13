@@ -20,6 +20,8 @@ const GROUPS: { id: GroupKey; label: string }[] = [
   { id: 'keyakinan', label: 'Keyakinan' },
 ]
 
+const isScopedRole = (roleId: string) => roleId === 'kai' || roleId === 'tj'
+
 const groupOf = (r: Recommendation, g: GroupKey) =>
   g === 'instansi'
     ? r.targetShort === 'KAI Commuter'
@@ -52,10 +54,13 @@ export default function RecPanel({
   onFocus: (r: Recommendation) => void
   onShowGap: () => void
 }) {
+  const scoped = isScopedRole(role.id)
   const listRef = useRef<HTMLDivElement>(null)
-  const [group, setGroup] = useState<GroupKey>(role.id === 'kai' || role.id === 'tj' ? 'instansi' : 'jenis')
+  const [group, setGroup] = useState<GroupKey>(scoped ? 'jenis' : 'instansi')
   const [showPantau, setShowPantau] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
+  // Setelah difilter per peran, mengelompokkan lagi per instansi cuma menghasilkan satu grup.
+  const groups = scoped ? GROUPS.filter((g) => g.id !== 'instansi') : GROUPS
 
   const numbered = useMemo(() => recs.map((r, i) => ({ r, n: i + 1 })), [recs])
   const prioritas = numbered.filter((x) => x.r.tier === 'prioritas')
@@ -63,7 +68,6 @@ export default function RecPanel({
   const activeIsPantau = activeRecId !== null && pantau.some((x) => x.r.id === activeRecId)
   const pantauVisible = showPantau || activeIsPantau
 
-  // Kelompok milik peran ditaruh paling atas.
   const grouped = (items: typeof numbered) => {
     const m = new Map<string, typeof numbered>()
     for (const x of items) {
@@ -71,7 +75,7 @@ export default function RecPanel({
       if (!m.has(k)) m.set(k, [])
       m.get(k)!.push(x)
     }
-    return [...m.entries()].sort(([, a], [, b]) => Number(b.some((x) => role.owns(x.r))) - Number(a.some((x) => role.owns(x.r))))
+    return [...m.entries()]
   }
 
   useEffect(() => {
@@ -147,6 +151,7 @@ export default function RecPanel({
         <p>
           Kawasan yang ramai menurut warga tetapi layanan transitnya kurang.{' '}
           {loading ? 'Sedang dihitung.' : `${prioritas.length} prioritas, ${pantau.length} perlu dipantau.`}
+          {!loading && scoped && ` Khusus untuk ${role.label}.`}
         </p>
         {mode !== 'gap' && recs.length > 0 && (
           <button type="button" className="btn small" onClick={onShowGap}>
@@ -159,7 +164,7 @@ export default function RecPanel({
         <label>
           <span>Kelompokkan</span>
           <select value={group} onChange={(e) => setGroup(e.target.value as GroupKey)}>
-            {GROUPS.map((g) => (
+            {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.label}
               </option>

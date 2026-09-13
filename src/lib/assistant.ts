@@ -43,7 +43,7 @@ const listRecs = (rs: Recommendation[], all: Recommendation[]) =>
 
 export function askSimpul(question: string, model: SimpulModel, recs: Recommendation[]): SimpulAnswer {
   const q = question.toLowerCase().trim()
-  const trace: string[] = [`Input: "${question}"`]
+  const trace: string[] = [`Pertanyaan: "${question}"`]
   const facts: { label: string; value: string }[] = []
   let setBlock: BlockId | null = detectBlock(q)
   let focus: SimpulAnswer['focus'] = null
@@ -72,7 +72,13 @@ export function askSimpul(question: string, model: SimpulModel, recs: Recommenda
   const wantsAfterLast = /setelah kereta terakhir|kereta habis|masih hidup|masih ramai/.test(q)
   const wantsSummary = /ringkas|rangkum|gambaran|overview|kondisi|situasi/.test(q)
 
-  trace.push(`Maksud: blok ${setBlock ?? '-'} | stasiun ${node?.name ?? '-'} | kandidat ${wantsRec} | kesenjangan ${wantsGap}`)
+  const maksud = [
+    setBlock && `soal blok ${blockMeta(setBlock).label}`,
+    node && `tentang ${node.name}`,
+    wantsRec && 'minta rekomendasi',
+    wantsGap && 'soal kesenjangan',
+  ].filter(Boolean)
+  trace.push(`Pertanyaan dibaca sebagai: ${maksud.length ? maksud.join(', ') : 'pertanyaan umum'}`)
 
   const summaries = summarizeBlocks(model)
   let answer: string
@@ -211,7 +217,7 @@ export function askSimpul(question: string, model: SimpulModel, recs: Recommenda
     trace.push('Rute: jawaban umum')
   }
 
-  trace.push(`Hasil: jawaban${setBlock ? `, pindah ke blok ${setBlock}` : ''}${focus ? ', peta digeser' : ''}`)
+  trace.push(`Jawaban disusun dari hitungan${setBlock ? `, peta dipindah ke blok ${blockMeta(setBlock).label}` : ''}${focus ? ', dan digeser ke lokasi terkait' : ''}.`)
   return { answer, setBlock, focus, trace, facts }
 }
 

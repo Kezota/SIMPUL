@@ -211,11 +211,39 @@ function runTool(name: string, input: Record<string, unknown>, env: ToolEnv): un
   }
 }
 
-const summarizeArgs = (input: Record<string, unknown>) =>
-  Object.entries(input)
-    .filter(([, v]) => v !== null && v !== undefined && v !== 'semua')
-    .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
-    .join(', ')
+const JENIS_LABEL = { jadwal: 'frekuensi rendah', jangkauan: 'tak terjangkau' } as const
+const TARGET_LABEL = { kai: 'KAI Commuter', transjakarta: 'TransJakarta' } as const
+
+/** Kalimat manusiawi untuk jejak "cara jawaban ini disusun" — bukan dump nama fungsi + argumen mentah. */
+function describeTool(name: string, input: Record<string, unknown>): string {
+  switch (name) {
+    case 'ringkasan_kota':
+      return 'Mengambil ringkasan kondisi se-Jabodetabek'
+    case 'sel_ramai':
+      return `Mencari petak ramai pada blok ${isBlock(input.blok) ? blockMeta(input.blok).label : 'yang diminta'}`
+    case 'daftar_kandidat': {
+      const jenis = input.jenis === 'jadwal' || input.jenis === 'jangkauan' ? ` jenis ${JENIS_LABEL[input.jenis]}` : ''
+      const target = input.target === 'kai' || input.target === 'transjakarta' ? ` untuk ${TARGET_LABEL[input.target]}` : ''
+      return `Mengambil daftar kandidat${jenis}${target}`
+    }
+    case 'detail_kandidat':
+      return `Membuka detail kandidat nomor ${input.nomor}`
+    case 'bandingkan_kandidat':
+      return `Membandingkan kandidat nomor ${input.nomor_a} dan nomor ${input.nomor_b}`
+    case 'profil_kawasan':
+      return `Mencari profil kawasan sekitar "${input.nama}"`
+    case 'tampilkan_di_peta': {
+      const parts: string[] = []
+      if (isBlock(input.blok)) parts.push(`pindah ke blok ${blockMeta(input.blok).label}`)
+      if (input.mode === 'denyut' || input.mode === 'gap') parts.push(`tampilan ${input.mode === 'gap' ? 'Kesenjangan' : 'Keramaian'}`)
+      if (Number(input.kandidat) >= 1) parts.push(`sorot kandidat nomor ${input.kandidat}`)
+      if (typeof input.lat === 'number' && typeof input.lon === 'number') parts.push('terbang ke lokasi')
+      return parts.length ? `Menggerakkan peta: ${parts.join(', ')}` : 'Menggerakkan peta'
+    }
+    default:
+      return `Menjalankan alat ${name}`
+  }
+}
 
 /* ── Jalur instan (tanpa AI) ──────────────────────────────────────────────── */
 
@@ -318,7 +346,7 @@ export class AssistantSession {
       model,
       recs,
       ui: { setBlock: null, setMode: null, focus: null, activeRec: null },
-      trace: [`Input: "${question}"`],
+      trace: [`Pertanyaan: "${question}"`],
     }
     const contents: GContent[] = [...this.history.slice(-HISTORY_TURNS * 2), { role: 'user', parts: [{ text: question }] }]
     let answer = ''
@@ -386,7 +414,7 @@ export class AssistantSession {
         const name = p.functionCall!.name
         const input = (p.functionCall!.args ?? {}) as Record<string, unknown>
         const out = runTool(name, input, env)
-        env.trace.push(`Alat: ${name}(${summarizeArgs(input)})`)
+        env.trace.push(describeTool(name, input))
         onProgress?.(`Menjalankan alat ${name}…`)
         const fr: GPart['functionResponse'] = { name, response: { result: out } }
         if (p.functionCall!.id) fr.id = p.functionCall!.id
@@ -396,10 +424,12 @@ export class AssistantSession {
     }
 
     if (!answer) answer = 'Asisten tidak menghasilkan jawaban. Coba ulangi dengan pertanyaan yang lebih spesifik.'
+    const langkah = env.trace.length - 1
     env.trace.push(
-      `Hasil: kalimat disusun ${modelName}; angka dari ${env.trace.length - 1} panggilan alat` +
-        (env.ui.setBlock ? ` · pindah blok ${env.ui.setBlock}` : '') +
-        (env.ui.focus ? ' · fly-to' : ''),
+      `Jawaban dirangkai AI dari ${langkah} langkah pencarian data di atas` +
+        (env.ui.setBlock ? `, lalu peta dipindah ke blok ${blockMeta(env.ui.setBlock).label}` : '') +
+        (env.ui.focus ? ', dan peta bergeser ke lokasi terkait' : '') +
+        '.',
     )
 
     // Simpan ringkasan giliran (tanpa hasil alat) supaya pertanyaan lanjutan nyambung.

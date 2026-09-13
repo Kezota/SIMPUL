@@ -1,8 +1,8 @@
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight } from "lucide-react";
 
-import logoImg from '../assets/logo.jpeg'
-import { ROLES, type Role } from '../lib/roles'
-import RoleIcon from './RoleIcon'
+import logoImg from "../assets/logo.jpg";
+import { ROLES, type Role } from "../lib/roles";
+import RoleIcon from "./RoleIcon";
 
 /** Layar masuk: pilih peran, langsung masuk. Tanpa nama, tanpa kata sandi. */
 export default function Login({ onEnter }: { onEnter: (role: Role) => void }) {
@@ -19,7 +19,12 @@ export default function Login({ onEnter }: { onEnter: (role: Role) => void }) {
         <p className="lg-ask">Masuk sebagai siapa?</p>
         <div className="lg-grid">
           {ROLES.map((r) => (
-            <button key={r.id} type="button" className="lg-role" onClick={() => onEnter(r)}>
+            <button
+              key={r.id}
+              type="button"
+              className="lg-role"
+              onClick={() => onEnter(r)}
+            >
               <span className={`lg-icon lg-icon-${r.id}`} aria-hidden="true">
                 <RoleIcon id={r.id} size={22} />
               </span>
@@ -34,8 +39,11 @@ export default function Login({ onEnter }: { onEnter: (role: Role) => void }) {
             </button>
           ))}
         </div>
-        <p className="lg-note">Peran hanya mengatur kandidat mana yang tampil lebih dulu. Datanya sama untuk semua.</p>
+        <p className="lg-note">
+          Peran hanya mengatur kandidat mana yang tampil lebih dulu. Datanya
+          sama untuk semua.
+        </p>
       </div>
     </div>
-  )
+  );
 }

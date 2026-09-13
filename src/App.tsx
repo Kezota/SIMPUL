@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 
-import logoImg from "./assets/logo.jpeg";
+import logoImg from "./assets/logo.jpg";
 import type { BasemapVariant } from "./lib/basemap";
 import { buildModel, summarizeBlocks } from "./lib/engine";
-import { AlertTriangle, BookOpen, Flame, Info, Moon, Satellite, Sun } from "lucide-react";
+import {
+  AlertTriangle,
+  BookOpen,
+  Flame,
+  Info,
+  Moon,
+  Satellite,
+  Sun,
+} from "lucide-react";
 import Onboarding, { type IntroStep } from "./components/Onboarding";
 import RoleIcon from "./components/RoleIcon";
 import Login from "./components/Login";
@@ -81,7 +89,13 @@ export default function App() {
     () => buildModel(feed?.items ?? [], feed?.note),
     [feed],
   );
-  const recs = useMemo(() => buildRecommendations(model), [model]);
+  // Kandidat disaring per peran: KAI hanya melihat kandidatnya, TJ hanya kandidatnya.
+  // Dishub dan Tamu (owns selalu true) tetap melihat semuanya.
+  const allRecs = useMemo(() => buildRecommendations(model), [model]);
+  const recs = useMemo(
+    () => (role ? allRecs.filter(role.owns) : allRecs),
+    [allRecs, role],
+  );
   const summaries = useMemo(() => summarizeBlocks(model), [model]);
 
   const [block, setBlock] = useState<BlockId>("sore");
@@ -109,7 +123,9 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("rekomendasi");
   const [activeRecId, setActiveRecId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [intro, setIntro] = useState<IntroStep | null>(() => (guideSeen() ? null : "tentang"));
+  const [intro, setIntro] = useState<IntroStep | null>(() =>
+    guideSeen() ? null : "tentang",
+  );
 
   const isMobile = useIsMobile();
   const variant: BasemapVariant = satellite ? "satellite" : theme;
@@ -219,9 +235,8 @@ export default function App() {
               : ""
         }`;
 
-  const ownedCount = recs.filter(
-    (r) => r.tier === "prioritas" && role.owns(r),
-  ).length;
+  // recs sudah disaring milik peran ini, tinggal hitung yang prioritas.
+  const ownedCount = recs.filter((r) => r.tier === "prioritas").length;
 
   return (
     <div className={`app${isMobile ? " is-mobile" : ""}`} data-theme={theme}>

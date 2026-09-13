@@ -103,7 +103,7 @@ export default function AssistantPanel({
               : 'AI hanya memilih alat dan merangkai kalimat. Setiap angka dihitung SIMPUL, dan jawaban ikut menggerakkan peta.'
           }
         >
-          {engine === 'aturan' ? 'Tanpa AI: jawaban dari hitungan' : 'Gemini + hitungan SIMPUL'}
+          {engine === 'aturan' ? 'Tanpa AI: jawaban dari hitungan' : 'Gemini + hitungan'}
         </span>
         <span className="ai-status-note">Pertanyaan rutin dijawab langsung tanpa AI</span>
       </div>

@@ -1,11 +1,5 @@
 # ARSITEKTUR.md — Rancangan Implementasi SIMPUL
 
-> Arsitektur untuk **tahap implementasi penuh** (setelah lolos 50 besar, saat data API MAPID terbuka). Diagram ditulis dengan Mermaid — GitHub me-render-nya otomatis; bisa juga di-paste ke mermaid.live atau FigJam untuk diekspor jadi gambar proposal.
->
-> Prinsip besarnya satu: **kerja berat dilakukan di belakang secara berkala (batch), browser hanya menampilkan hasil jadi.** Ini yang membuat WebGIS-nya tetap ringan (syarat lomba: loading wajar) walau datanya membesar.
-
----
-
 ## 1. Gambaran besar
 
 ```mermaid
